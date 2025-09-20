@@ -1,7 +1,8 @@
 import React from "react";
+import ExcalidrawCanvas from "@/components/ExcalidrawCanvas";
 
 const Home = () => {
-  return <div>Home</div>;
+  return <ExcalidrawCanvas />;
 };
 
 export default Home;
