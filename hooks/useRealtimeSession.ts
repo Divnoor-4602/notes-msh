@@ -29,9 +29,12 @@ export function useRealtimeSession() {
   }, []);
 
   const handleTransportEvent = useCallback((event: any) => {
+    console.log("📡 Transport event received:", event.type, event);
+
     // Handle transcription events
     switch (event.type) {
       case "conversation.item.input_audio_transcription.completed": {
+        console.log("🎙️ Transcription completed:", event.transcript);
         if (onTranscriptionRef.current && event.transcript) {
           onTranscriptionRef.current({
             type: "transcription",
@@ -41,9 +44,22 @@ export function useRealtimeSession() {
         }
         break;
       }
+      case "response.function_call_delta":
+      case "response.function_call.started":
+      case "response.function_call.completed":
+        console.log("🔧 Function call event:", event.type, event);
+        break;
+      case "response.audio.delta":
+      case "response.audio.done":
+        console.log("🔊 Audio response:", event.type);
+        break;
+      case "response.text.delta":
+      case "response.text.done":
+        console.log("📝 Text response:", event.type, event.delta || event.text);
+        break;
       default:
-        // Log other events for debugging
-        // console.log("Transport event:", event.type, event);
+        // Log all events for debugging
+        console.log("📡 Other transport event:", event.type, event);
         break;
     }
   }, []);
@@ -59,8 +75,12 @@ export function useRealtimeSession() {
         const ephemeralKey = await getEphemeralKey();
 
         // Create the listening agent with tools
+        console.log("🤖 Creating listening agent...");
         const agent = createListeningAgent();
+        console.log("✅ Listening agent created:", agent);
+        console.log("🔧 Agent tools count:", agent.tools?.length || 0);
 
+        console.log("🔗 Creating RealtimeSession...");
         sessionRef.current = new RealtimeSession(agent, {
           transport: new OpenAIRealtimeWebRTC({
             // Enable both input and output audio
@@ -82,9 +102,12 @@ export function useRealtimeSession() {
         });
 
         // Set up event handlers
+        console.log("📡 Setting up transport event handlers...");
         sessionRef.current.on("transport_event", handleTransportEvent);
 
+        console.log("🔌 Connecting RealtimeSession...");
         await sessionRef.current.connect({ apiKey: ephemeralKey });
+        console.log("✅ RealtimeSession connected successfully");
         updateStatus("CONNECTED");
       } catch (error) {
         console.error("Failed to connect:", error);

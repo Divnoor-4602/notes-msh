@@ -39,9 +39,7 @@ const addShape = tool({
       );
 
       // Verify the shape type is valid
-      console.log(
-        `🔍 Shape type: ${type}, valid types: rectangle, ellipse, diamond`
-      );
+      console.log(`🔍 Shape type: ${type}, valid types: r`);
 
       const store = getCanvasStore();
       await store.addElementSkeleton(shapeElementSkeleton);
@@ -79,9 +77,11 @@ export const AddShapeTool: RegisteredTool = {
       "Add simple geometric shapes (rectangle, ellipse, diamond) with optional text labels",
     usage: `- Call for requests to add/create/draw basic geometric shapes
 - Supports rectangle, ellipse, and diamond types only
-- Can include text labels inside shapes for containers/boxes  
+- Can include text labels inside shapes for containers/boxes
+- Use sensible defaults: coordinates default to reasonable positions, no need to ask for missing details
 - Use for simple diagrams, flowcharts, and basic shapes
-- Examples: "draw a rectangle at 100, 200", "create a circle", "add a diamond with text 'Decision'"`,
+- Examples: "draw a rectangle", "create a circle", "add a diamond with text 'Decision'"
+- Always proceed with defaults rather than asking for coordinates, colors, or sizes`,
   },
   category: "shape",
 };

@@ -31,7 +31,7 @@ const addText = tool({
         x: xPos,
         y: yPos,
         text: text,
-        fontSize: fontSize ?? 120,
+        fontSize: fontSize ?? 32,
         strokeColor: strokeColor ?? "#000000",
       };
 
@@ -70,8 +70,10 @@ export const AddTextTool: RegisteredTool = {
     summary: "Add any text/words onto the canvas at specified coordinates",
     usage: `- Always call when user requests to add/write/type/insert text
 - Extract exact text content from user speech
-- If coordinates missing, defaults to x=100, y=100
-- Required for ALL text-related requests regardless of phrasing`,
+- Use sensible defaults: coordinates default to (100, 100), font size to 120, black color
+- Never ask for missing coordinates, colors, or font sizes - use defaults
+- Required for ALL text-related requests regardless of phrasing
+- Examples: "add text hello", "write meeting notes", "put some text that says important"`,
   },
   category: "text",
 };
