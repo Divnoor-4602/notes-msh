@@ -18,6 +18,11 @@ const getConvertToExcalidrawElements = async () => {
     const excalidrawModule = await import("@excalidraw/excalidraw");
     convertToExcalidrawElements = excalidrawModule.convertToExcalidrawElements;
   }
+
+  console.log(
+    "🔄 Canvas Store: Got converter function",
+    convertToExcalidrawElements
+  );
   return convertToExcalidrawElements;
 };
 
@@ -55,23 +60,47 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   // Add a new element using skeleton (cleaner approach)
   addElementSkeleton: async (skeleton: ExcalidrawElementSkeleton) => {
-    const convert = await getConvertToExcalidrawElements();
-    set((state) => {
-      // Convert skeleton to full Excalidraw element
-      const [convertedElement] = convert([skeleton]);
-      const newElements = [...state.elements, convertedElement];
+    try {
+      console.log("🏪 Canvas Store: Adding element skeleton:", skeleton);
+      const convert = await getConvertToExcalidrawElements();
+      console.log("🔄 Canvas Store: Got converter function");
 
-      // Update Excalidraw canvas if API is available
-      if (state.excalidrawAPI) {
-        state.excalidrawAPI.updateScene({
-          elements: newElements,
-        });
-      }
+      set((state) => {
+        try {
+          // Convert skeleton to full Excalidraw elements (shape + bound text)
+          const convertedElements = convert([skeleton]);
+          console.log(
+            `✅ Canvas Store: Converted ${convertedElements.length} elements:`,
+            convertedElements
+          );
 
-      return {
-        elements: newElements,
-      };
-    });
+          const newElements = [...state.elements, ...convertedElements];
+          console.log(
+            `📊 Canvas Store: Total elements now: ${newElements.length}`
+          );
+
+          // Update Excalidraw canvas if API is available
+          if (state.excalidrawAPI) {
+            console.log("🎨 Canvas Store: Updating Excalidraw scene");
+            state.excalidrawAPI.updateScene({
+              elements: newElements,
+            });
+          } else {
+            console.warn("⚠️ Canvas Store: No Excalidraw API available");
+          }
+
+          return {
+            elements: newElements,
+          };
+        } catch (conversionError) {
+          console.error("❌ Canvas Store: Conversion error:", conversionError);
+          throw conversionError;
+        }
+      });
+    } catch (error) {
+      console.error("❌ Canvas Store: addElementSkeleton failed:", error);
+      throw error;
+    }
   },
 
   // Add multiple elements using skeletons

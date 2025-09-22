@@ -43,7 +43,7 @@ export function useRealtimeSession() {
       }
       default:
         // Log other events for debugging
-        console.log("Transport event:", event.type, event);
+        // console.log("Transport event:", event.type, event);
         break;
     }
   }, []);
