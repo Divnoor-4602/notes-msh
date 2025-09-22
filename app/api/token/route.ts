@@ -24,7 +24,7 @@ interface ErrorResponse {
 const sessionConfig: RealtimeSessionConfig = {
   session: {
     type: "realtime",
-    model: "gpt-realtime",
+    model: "gpt-4o-mini-realtime-preview-2024-12-17",
     audio: {
       output: {
         voice: "alloy",

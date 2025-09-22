@@ -8,7 +8,6 @@ import {
 
 export default function VoiceAgent() {
   const [error, setError] = useState<string | null>(null);
-  const [isPTTActive, setIsPTTActive] = useState(true); // Default to PTT mode
   const [isPTTUserSpeaking, setIsPTTUserSpeaking] = useState(false);
   const [transcriptions, setTranscriptions] = useState<TranscriptionEvent[]>(
     []

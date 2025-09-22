@@ -6,6 +6,7 @@ import {
   RealtimeAgent,
   OpenAIRealtimeWebRTC,
 } from "@openai/agents/realtime";
+import { createListeningAgent } from "../lib/agent/listeningAgent";
 
 export type SessionStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED";
 
@@ -61,23 +62,25 @@ export function useRealtimeSession() {
       try {
         const ephemeralKey = await getEphemeralKey();
 
-        // Create a simple agent for transcription only (no responses)
-        const agent = new RealtimeAgent({
-          name: "transcription_agent",
-          instructions:
-            "You are a transcription agent. Only listen and transcribe audio input. Do not generate responses.",
-        });
+        // Create the listening agent with tools
+        const agent = createListeningAgent();
 
         sessionRef.current = new RealtimeSession(agent, {
           transport: new OpenAIRealtimeWebRTC({
-            // No audio element needed for input-only
+            // Enable both input and output audio
           }),
-          model: "gpt-realtime",
+          model: "gpt-4o-mini-realtime-preview-2024-12-17",
           config: {
             inputAudioFormat: "pcm16",
-            // Remove output audio format since we don't need audio output
+            outputAudioFormat: "pcm16",
             inputAudioTranscription: {
               model: "gpt-4o-mini-transcribe",
+            },
+            turnDetection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefixPaddingMs: 300,
+              silenceDurationMs: 500,
             },
           },
         });
@@ -119,7 +122,14 @@ export function useRealtimeSession() {
     sessionRef.current.transport.sendEvent({
       type: "input_audio_buffer.commit",
     });
-    // Don't create response since we only want transcription
+    // Allow the agent to generate a response
+    sessionRef.current.transport.sendEvent({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "user",
+      },
+    });
   }, []);
 
   return {
