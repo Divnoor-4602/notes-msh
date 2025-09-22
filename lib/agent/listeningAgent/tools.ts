@@ -31,7 +31,7 @@ export const addTextToCanvas = tool({
       y: yPos,
       text: text,
       // Optional properties can be omitted - Excalidraw will fill in defaults
-      fontSize: 16,
+      fontSize: 120,
       strokeColor: "#000000",
     };
 

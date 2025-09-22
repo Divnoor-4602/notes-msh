@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import {
-  RealtimeSession,
-  RealtimeAgent,
-  OpenAIRealtimeWebRTC,
-} from "@openai/agents/realtime";
+import { RealtimeSession, OpenAIRealtimeWebRTC } from "@openai/agents/realtime";
 import { createListeningAgent } from "../lib/agent/listeningAgent";
 
 export type SessionStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED";
