@@ -1,22 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project with OpenAI Voice Agents integration, featuring a collaborative drawing canvas and voice assistant.
+
+## Features
+
+- 🎨 **Excalidraw Canvas**: Collaborative drawing and diagramming
+- 🎤 **Voice Agent**: Real-time voice interaction using OpenAI's Realtime API
+- 🔄 **Real-time Updates**: Live collaboration features
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **OpenAI API Key**: Get your API key from [OpenAI Platform](https://platform.openai.com/api-keys)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Clone and install dependencies**:
+
+   ```bash
+   pnpm install
+   ```
+
+2. **Set up environment variables**:
+   Create a `.env.local` file in the root directory:
+
+   ```bash
+   OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+   ```
+
+3. **Run the development server**:
+
+   ```bash
+   pnpm dev
+   ```
+
+4. **Open your browser**:
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+### Using the Voice Agent
+
+1. Click the "Connect" button in the Voice Agent panel (bottom-right corner)
+2. Grant microphone permissions when prompted
+3. Start speaking to interact with the AI assistant
+4. The agent will respond with voice and can help with various tasks
+
+**Note**: The voice agent requires a stable internet connection and microphone access.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
