@@ -1,12 +1,6 @@
 import type { RegisteredTool, ToolName } from "@/lib/validations/tool.schema";
-import { AddTextTool } from "./addTextTool";
-import { AddShapeTool } from "./addShapeTool";
-import { DiagramAgentTool } from "@/lib/agent/diagramAgent";
 
 const ALL_TOOLS: RegisteredTool[] = [
-  AddTextTool,
-  AddShapeTool,
-  DiagramAgentTool,
   // Add new tools here: AddLineTool, AddArrowTool, etc.
 ];
 
