@@ -29,4 +29,3 @@ export function createListeningAgent(
 
   return agent;
 }
-s;
