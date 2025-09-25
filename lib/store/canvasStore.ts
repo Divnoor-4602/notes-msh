@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { mapMermaidToExcalidrawIds } from "@/lib/utils/mappingIds";
+import {
+  mapMermaidToExcalidrawIds,
+  detectNewElements,
+  remapManualElements,
+} from "@/lib/utils/mappingIds";
 import { extractCanvasContext } from "@/lib/agent/listeningAgent/tools/utils";
 
 // Define types based on what we know is available
@@ -43,6 +47,8 @@ interface CanvasState {
   excalidrawAPI: ExcalidrawAPI | null;
   elements: ExcalidrawElement[];
   isProcessingDiagram: boolean;
+  isRemappingElements: boolean;
+  lastSyncedElements: ExcalidrawElement[]; // Track last synced state for meaningful change detection
 
   // Actions for API management
   setExcalidrawAPI: (api: ExcalidrawAPI) => void;
@@ -55,6 +61,7 @@ interface CanvasState {
   addMermaidDiagram: (diagramDefinition: string) => Promise<void>;
   updateElements: (elements: ExcalidrawElement[]) => void;
   syncFromExcalidraw: (elements: ExcalidrawElement[]) => void;
+  syncFromExcalidrawWithRemapping: (elements: ExcalidrawElement[]) => void;
   syncToExcalidraw: () => void;
 
   // Utility actions
@@ -67,8 +74,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   // Initial state
   excalidrawAPI: null,
   elements: [],
-  diagramDirection: "",
   isProcessingDiagram: false,
+  isRemappingElements: false,
+  lastSyncedElements: [],
 
   setExcalidrawAPI: (api: ExcalidrawAPI) => {
     set({ excalidrawAPI: api });
@@ -289,6 +297,41 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   syncFromExcalidraw: (elements: ExcalidrawElement[]) => {
     set({
       elements,
+      lastSyncedElements: [...elements], // Track synced state
+    });
+  },
+
+  syncFromExcalidrawWithRemapping: (elements: ExcalidrawElement[]) => {
+    set((state) => {
+      // Skip if already processing
+      if (state.isRemappingElements) {
+        return { elements };
+      }
+
+      // Only process if we have new elements (different count)
+      if (elements.length <= state.elements.length) {
+        return { elements, lastSyncedElements: [...elements] };
+      }
+
+      // Find truly new elements (ones not in previous state)
+      const previousIds = new Set(state.elements.map((el) => el.id));
+      const newElements = elements.filter((el) => !previousIds.has(el.id));
+
+      if (newElements.length === 0) {
+        return { elements, lastSyncedElements: [...elements] };
+      }
+
+      // Apply remapping only to new elements
+      const existingIds = new Set(state.elements.map((el) => el.id));
+      const remappedNewElements = remapManualElements(newElements, existingIds);
+
+      // Combine existing + remapped new elements
+      const finalElements = [...state.elements, ...remappedNewElements];
+
+      return {
+        elements: finalElements,
+        lastSyncedElements: [...finalElements],
+      };
     });
   },
 

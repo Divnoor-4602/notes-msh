@@ -18,8 +18,8 @@ const Excalidraw = dynamic(
 
 export default function ExcalidrawCanvas() {
   const setExcalidrawAPI = useCanvasStore((state) => state.setExcalidrawAPI);
-  const syncFromExcalidraw = useCanvasStore(
-    (state) => state.syncFromExcalidraw
+  const syncFromExcalidrawWithRemapping = useCanvasStore(
+    (state) => state.syncFromExcalidrawWithRemapping
   );
 
   const handleExcalidrawAPI = async (api: ExcalidrawAPI) => {
@@ -31,7 +31,8 @@ export default function ExcalidrawCanvas() {
     appState: AppState,
     files: BinaryFiles
   ) => {
-    syncFromExcalidraw([...elements]);
+    // Use remapping to give manual elements semantic IDs
+    syncFromExcalidrawWithRemapping([...elements]);
   };
 
   return (

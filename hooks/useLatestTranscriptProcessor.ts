@@ -42,9 +42,6 @@ export function useLatestTranscriptProcessor(
     const now = Date.now();
     const timeSinceLastProcess = now - lastProcessedAtRef.current;
     if (timeSinceLastProcess < cooldownMs) {
-      console.log(
-        `⏳ Cooldown active, waiting ${cooldownMs - timeSinceLastProcess}ms`
-      );
       return;
     }
 
@@ -57,10 +54,6 @@ export function useLatestTranscriptProcessor(
     const currentProcessingId = ++processingIdRef.current;
 
     setIsProcessing(true);
-    console.log(
-      `🔒 Processing latest transcript (ID: ${currentProcessingId}):`,
-      dataToProcess.transcript
-    );
 
     try {
       const startedAt = Date.now();
@@ -79,17 +72,9 @@ export function useLatestTranscriptProcessor(
       // Only update timestamp if this is still the latest processing
       if (currentProcessingId === processingIdRef.current) {
         lastProcessedAtRef.current = Date.now();
-        console.log(`✅ Processing completed (ID: ${currentProcessingId})`);
-      } else {
-        console.log(
-          `⚠️ Processing outdated (ID: ${currentProcessingId}), newer processing in progress`
-        );
       }
     } catch (error) {
-      console.error(
-        `❌ Processing failed (ID: ${currentProcessingId}):`,
-        error
-      );
+      console.error(`Processing failed (ID: ${currentProcessingId}):`, error);
     } finally {
       // Only clear processing flag if this is still the latest processing
       if (currentProcessingId === processingIdRef.current) {
@@ -104,12 +89,6 @@ export function useLatestTranscriptProcessor(
       latestDataRef.current = data;
       setPendingCount((prev) => prev + 1);
 
-      console.log(
-        `📝 Transcript queued: "${data.transcript}" (Pending: ${
-          pendingCount + 1
-        })`
-      );
-
       // Clear existing debounce timeout
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
@@ -118,9 +97,6 @@ export function useLatestTranscriptProcessor(
       // Set new debounce timeout (adaptive)
       const waitMs = adaptiveDebounceMsRef.current;
       debounceTimeoutRef.current = setTimeout(() => {
-        console.log(
-          `⏰ Debounce timeout reached, processing latest transcript`
-        );
         processLatest();
       }, waitMs);
     },
@@ -134,7 +110,6 @@ export function useLatestTranscriptProcessor(
     }
     latestDataRef.current = null;
     setPendingCount(0);
-    console.log(`🧹 Transcript queue cleared`);
   }, []);
 
   const forceProcess = useCallback(() => {
