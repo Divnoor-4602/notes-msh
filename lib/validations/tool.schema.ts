@@ -1,4 +1,4 @@
-import type { tool } from "@openai/agents/realtime";
+import type { tool } from "@openai/agents";
 import { z } from "zod";
 
 export type ToolName = string;
@@ -41,3 +41,9 @@ export const StrokeWidthSchema = z
   .positive()
   .max(20)
   .describe("Stroke width in pixels (1-20)");
+
+// get response from diagram agent tool schema
+export const GetResponseFromDiagramAgentParameterSchema = z.object({
+  currentChunkText: z.string().nullable(),
+  recentContext: z.string().nullable(),
+});

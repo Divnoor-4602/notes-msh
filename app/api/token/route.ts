@@ -72,10 +72,7 @@ export async function GET(
     const data = await response.json();
 
     // Log token for debugging
-    console.log(
-      "Generated ephemeral token:",
-      data.value?.substring(0, 10) + "..."
-    );
+    console.log("Generated ephemeral token:");
 
     return NextResponse.json(data);
   } catch (error) {

@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import "@excalidraw/excalidraw/index.css";
 import { useCanvasStore } from "@/lib/store/canvasStore";
 
-// Define types to avoid import issues
 type ExcalidrawAPI = any;
 type ExcalidrawElement = any;
 type AppState = any;
@@ -23,8 +22,7 @@ export default function ExcalidrawCanvas() {
     (state) => state.syncFromExcalidraw
   );
 
-  const handleExcalidrawAPI = (api: ExcalidrawAPI) => {
-    console.log("🎨 Excalidraw API initialized");
+  const handleExcalidrawAPI = async (api: ExcalidrawAPI) => {
     setExcalidrawAPI(api);
   };
 
@@ -33,7 +31,6 @@ export default function ExcalidrawCanvas() {
     appState: AppState,
     files: BinaryFiles
   ) => {
-    console.log("🔄 Excalidraw elements changed, syncing to store");
     syncFromExcalidraw([...elements]);
   };
 

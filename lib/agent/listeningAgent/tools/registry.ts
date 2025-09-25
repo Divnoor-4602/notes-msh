@@ -1,8 +1,7 @@
 import type { RegisteredTool, ToolName } from "@/lib/validations/tool.schema";
+import { getResponseFromDiagramAgent } from "./getResponseFromDiagramAgent";
 
-const ALL_TOOLS: RegisteredTool[] = [
-  // Add new tools here: AddLineTool, AddArrowTool, etc.
-];
+const ALL_TOOLS: RegisteredTool[] = [getResponseFromDiagramAgent];
 
 const byName = new Map<string, RegisteredTool>(
   ALL_TOOLS.map((t) => [t.docs.name, t])

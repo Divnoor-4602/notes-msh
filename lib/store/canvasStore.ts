@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { mapMermaidToExcalidrawIds } from "@/lib/utils/mappingIds";
+import { extractCanvasContext } from "@/lib/agent/listeningAgent/tools/utils";
 
 // Define types based on what we know is available
 type ExcalidrawAPI = any; // We'll use any for now since imports are tricky
@@ -40,6 +42,7 @@ interface CanvasState {
   // Core state
   excalidrawAPI: ExcalidrawAPI | null;
   elements: ExcalidrawElement[];
+  isProcessingDiagram: boolean;
 
   // Actions for API management
   setExcalidrawAPI: (api: ExcalidrawAPI) => void;
@@ -57,19 +60,20 @@ interface CanvasState {
   // Utility actions
   clearCanvas: () => void;
   getElementById: (id: string) => ExcalidrawElement | undefined;
+  getCanvasContext: () => any;
 }
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   // Initial state
   excalidrawAPI: null,
   elements: [],
+  diagramDirection: "",
+  isProcessingDiagram: false,
 
-  // Set the Excalidraw API instance
   setExcalidrawAPI: (api: ExcalidrawAPI) => {
     set({ excalidrawAPI: api });
   },
 
-  // Add a new element using skeleton (cleaner approach)
   addElementSkeleton: async (skeleton: ExcalidrawElementSkeleton) => {
     try {
       const convert = await getConvertToExcalidrawElements();
@@ -77,8 +81,33 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       set((state) => {
         try {
           // Convert skeleton to full Excalidraw elements (shape + bound text)
-          const convertedElements = convert([skeleton]);
-          const newElements = [...state.elements, ...convertedElements];
+          const convertedElements = convert([skeleton], {
+            regenerateIds: false,
+          });
+
+          // Apply ID remapping to preserve original Mermaid IDs
+          const remappedElements = mapMermaidToExcalidrawIds(
+            [skeleton],
+            convertedElements
+          );
+
+          // Ensure unique IDs by checking against existing elements
+          const existingIds = new Set(state.elements.map((el) => el.id));
+          const uniqueRemappedElements = remappedElements.map((el) => {
+            if (existingIds.has(el.id)) {
+              // Generate a unique ID by appending a counter
+              let counter = 2;
+              let newId = `${el.id}_${counter}`;
+              while (existingIds.has(newId)) {
+                counter++;
+                newId = `${el.id}_${counter}`;
+              }
+              el.id = newId;
+            }
+            return el;
+          });
+
+          const newElements = [...state.elements, ...uniqueRemappedElements];
 
           // Update Excalidraw canvas if API is available
           if (state.excalidrawAPI) {
@@ -91,25 +120,45 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
             elements: newElements,
           };
         } catch (conversionError) {
-          console.error("Canvas Store: Conversion error:", conversionError);
           throw conversionError;
         }
       });
     } catch (error) {
-      console.error("Canvas Store: addElementSkeleton failed:", error);
       throw error;
     }
   },
 
-  // Add multiple elements using skeletons
   addElementsSkeleton: async (skeletons: ExcalidrawElementSkeleton[]) => {
     try {
       const convert = await getConvertToExcalidrawElements();
 
       set((state) => {
         // Convert skeletons to full Excalidraw elements
-        const convertedElements = convert(skeletons);
-        const newElements = [...state.elements, ...convertedElements];
+        const convertedElements = convert(skeletons, { regenerateIds: false });
+
+        // Apply ID remapping to preserve original Mermaid IDs
+        const remappedElements = mapMermaidToExcalidrawIds(
+          skeletons,
+          convertedElements
+        );
+
+        // Ensure unique IDs by checking against existing elements
+        const existingIds = new Set(state.elements.map((el) => el.id));
+        const uniqueRemappedElements = remappedElements.map((el) => {
+          if (existingIds.has(el.id)) {
+            // Generate a unique ID by appending a counter
+            let counter = 2;
+            let newId = `${el.id}_${counter}`;
+            while (existingIds.has(newId)) {
+              counter++;
+              newId = `${el.id}_${counter}`;
+            }
+            el.id = newId;
+          }
+          return el;
+        });
+
+        const newElements = [...state.elements, ...uniqueRemappedElements];
 
         // Update Excalidraw canvas if API is available
         if (state.excalidrawAPI) {
@@ -123,19 +172,47 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         };
       });
     } catch (error) {
-      console.error("Error in addElementsSkeleton:", error);
       throw error;
     }
   },
 
-  // Parse Mermaid code and add resulting elements to the canvas
   addMermaidDiagram: async (diagramDefinition: string) => {
+    // Check if we're already processing a diagram
+    const state = get();
+    if (state.isProcessingDiagram) {
+      return;
+    }
+
+    // Set processing flag
+    set({ isProcessingDiagram: true });
+
+    // Store current state for rollback in case of error
+    const currentElements = [...get().elements];
+    let hasExistingElements = false;
+
     try {
       const parseMermaid = await getParseMermaidToExcalidraw();
 
       if (!parseMermaid) {
-        console.warn("Mermaid parser unavailable in this environment");
         return;
+      }
+
+      // Get current canvas context to determine if this is incremental
+      const currentContext = get().getCanvasContext();
+      hasExistingElements =
+        currentContext.nodes.length > 0 || currentContext.edges.length > 0;
+
+      if (hasExistingElements) {
+        // INCREMENTAL MODE: Replace entire canvas with new diagram
+        // Clear existing elements first (but keep backup for rollback)
+        set((state) => {
+          if (state.excalidrawAPI) {
+            state.excalidrawAPI.updateScene({
+              elements: [],
+            });
+          }
+          return { elements: [] };
+        });
       }
 
       // Choose a sensible default font size
@@ -148,19 +225,52 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const { elements } = parseResult;
 
       if (!elements || elements.length === 0) {
-        console.warn("No elements generated from Mermaid parsing");
+        // Rollback to previous state if we had existing elements
+        if (hasExistingElements) {
+          set((state) => {
+            if (state.excalidrawAPI) {
+              state.excalidrawAPI.updateScene({
+                elements: currentElements,
+              });
+            }
+            return { elements: currentElements };
+          });
+        }
         return;
       }
 
-      // Elements are skeletons; reuse existing pipeline
       await get().addElementsSkeleton(elements as ExcalidrawElementSkeleton[]);
     } catch (error) {
-      console.error("Failed to add Mermaid diagram:", error);
+      console.error("❌ Error processing Mermaid diagram:", error);
+
+      // Rollback to previous state if we had existing elements
+      if (hasExistingElements) {
+        set((state) => {
+          if (state.excalidrawAPI) {
+            state.excalidrawAPI.updateScene({
+              elements: currentElements,
+            });
+          }
+          return { elements: currentElements };
+        });
+      }
+
+      // Handle specific error cases
+      if (
+        error instanceof Error &&
+        error.message.includes("has already been registered")
+      ) {
+        return;
+      }
+
+      // Re-throw error for upstream handling (e.g., toast notifications)
       throw error;
+    } finally {
+      // Always reset processing flag
+      set({ isProcessingDiagram: false });
     }
   },
 
-  // Update all elements (used for batch operations)
   updateElements: (elements: ExcalidrawElement[]) => {
     set((state) => {
       // Update Excalidraw canvas if API is available
@@ -176,14 +286,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 
-  // Sync elements FROM Excalidraw to store (when user manually edits)
   syncFromExcalidraw: (elements: ExcalidrawElement[]) => {
     set({
       elements,
     });
   },
 
-  // Sync elements TO Excalidraw from store
   syncToExcalidraw: () => {
     const { excalidrawAPI, elements } = get();
     if (excalidrawAPI) {
@@ -193,7 +301,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }
   },
 
-  // Clear all elements from both store and canvas
   clearCanvas: () => {
     set((state) => {
       if (state.excalidrawAPI) {
@@ -208,12 +315,15 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
   },
 
-  // Find element by ID
   getElementById: (id: string) => {
     const { elements } = get();
     return elements.find((el) => el.id === id);
   },
+
+  getCanvasContext: () => {
+    const { elements } = get();
+    return extractCanvasContext(elements);
+  },
 }));
 
-// Helper function to get store instance (for use outside React components)
 export const getCanvasStore = () => useCanvasStore.getState();
