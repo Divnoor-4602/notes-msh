@@ -2,12 +2,12 @@
 
 import React from "react";
 import ExcalidrawCanvas from "@/components/ExcalidrawCanvas";
-import VoiceAgent from "@/components/VoiceAgent";
+import AgentLayout from "@/components/agent-components/agent-layout";
 
 const Home = () => {
   return (
     <>
-      <VoiceAgent />
+      <AgentLayout />
       <ExcalidrawCanvas />
     </>
   );

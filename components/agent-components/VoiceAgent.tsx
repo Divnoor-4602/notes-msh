@@ -4,23 +4,15 @@ import React, { useState, useCallback } from "react";
 import {
   useRealtimeSession,
   TranscriptionEvent,
-} from "../hooks/useRealtimeSession";
+} from "../../hooks/useRealtimeSession";
 
 export default function VoiceAgent() {
   const [error, setError] = useState<string | null>(null);
-  const [isPTTUserSpeaking, setIsPTTUserSpeaking] = useState(false);
   const [transcriptions, setTranscriptions] = useState<TranscriptionEvent[]>(
     []
   );
 
-  const {
-    status,
-    connect,
-    disconnect,
-    sendEvent,
-    pushToTalkStart,
-    pushToTalkStop,
-  } = useRealtimeSession();
+  const { status, connect, disconnect } = useRealtimeSession();
 
   const getEphemeralKey = async () => {
     const response = await fetch("/api/token");
@@ -56,19 +48,6 @@ export default function VoiceAgent() {
     setTranscriptions([]);
   };
 
-  // Push-to-talk handlers
-  const handleTalkButtonDown = () => {
-    if (status !== "CONNECTED") return;
-    setIsPTTUserSpeaking(true);
-    pushToTalkStart();
-  };
-
-  const handleTalkButtonUp = () => {
-    if (status !== "CONNECTED" || !isPTTUserSpeaking) return;
-    setIsPTTUserSpeaking(false);
-    pushToTalkStop();
-  };
-
   const getStatusColor = () => {
     switch (status) {
       case "CONNECTED":
@@ -83,7 +62,7 @@ export default function VoiceAgent() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-md">
+    <div className="w-full">
       <div
         className={`px-4 py-3 rounded-lg shadow-lg border ${getStatusColor()}`}
       >
@@ -125,24 +104,6 @@ export default function VoiceAgent() {
               </>
             )}
           </div>
-
-          {/* Push-to-Talk Controls */}
-          {status === "CONNECTED" && (
-            <div className="flex gap-2 pt-1 border-t border-gray-200">
-              <button
-                onMouseDown={handleTalkButtonDown}
-                onMouseUp={handleTalkButtonUp}
-                onMouseLeave={handleTalkButtonUp}
-                className={`px-3 py-2 rounded text-xs font-medium ${
-                  isPTTUserSpeaking
-                    ? "bg-red-500 text-white"
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                }`}
-              >
-                {isPTTUserSpeaking ? "🎤 Recording..." : "🎤 Hold to Talk"}
-              </button>
-            </div>
-          )}
 
           {/* Transcription Display */}
           {transcriptions.length > 0 && (
