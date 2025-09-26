@@ -2,7 +2,7 @@ import mermaid from "mermaid";
 import { generateAlternativeId, parseMermaidStructure } from "./utils";
 
 // Polyfill DOM for Node.js environment only
-function injectDOMPolyfill(context: any) {
+function injectDOMPolyfill(context: Record<string, unknown>) {
   // Only run in Node.js environment, not in browser
   if (typeof window !== "undefined") {
     return; // Browser environment, no polyfill needed
@@ -10,18 +10,19 @@ function injectDOMPolyfill(context: any) {
 
   try {
     // Dynamic import to avoid bundling happy-dom in browser
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Window } = require("happy-dom");
     const window = new Window();
 
     for (const key of Object.getOwnPropertyNames(window)) {
       if (key in context) continue;
       try {
-        context[key] = (window as any)[key];
-      } catch (error) {
+        context[key] = (window as Record<string, unknown>)[key];
+      } catch {
         // Ignore errors for properties that can't be set
       }
     }
-  } catch (error) {
+  } catch {
     // happy-dom not available, skip polyfill
     console.warn(
       "happy-dom not available, mermaid.parse() may not work in Node.js"
@@ -263,7 +264,7 @@ function checkShapesAndLabels(
     /\(\(\([^)]*\)\)\)/, // double circle: (((Label)))
   ];
 
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
     const trimmedLine = line.trim();
 
     // Skip comments and empty lines
@@ -346,7 +347,7 @@ function checkSubgraphs(
   const subgraphStack: string[] = [];
   const validDirections = ["TD", "TB", "LR", "RL", "BT"];
 
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
     const trimmedLine = line.trim();
 
     if (trimmedLine.startsWith("subgraph")) {
@@ -403,7 +404,7 @@ function checkEdgeSyntax(
   lines: string[],
   violations: RuleLintViolation[]
 ): void {
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
     const trimmedLine = line.trim();
 
     // Check for multi-link inline syntax (a --> b & c --> d)

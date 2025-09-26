@@ -1,11 +1,10 @@
+/* eslint-disable */
 import { DIAGRAM_AGENT_PROMPT } from "../lib/agent/listeningAgent/prompts";
 import { diagrammingAgentTools } from "../lib/agent/listeningAgent/tools/utils";
 import {
   validateMermaid,
   ruleLint,
-  RuleLintInput,
   RuleLintResult,
-  ValidateIdsInput,
   validateIds,
 } from "../lib/agent/listeningAgent/tools/diagramAgentTools";
 import { Window } from "happy-dom";
@@ -142,7 +141,7 @@ function handleValidateIds(args: any) {
   }
 
   try {
-    const input: ValidateIdsInput = {
+    const input = {
       mermaid: args.mermaid_code || args.diagram_elements,
       usedNodeIds: args.usedNodeIds || [],
       usedEdgeIds: args.usedEdgeIds || [],
@@ -178,7 +177,7 @@ function handleRuleLint(args: any): RuleLintResult {
     };
   }
 
-  const input: RuleLintInput = {
+  const input = {
     mermaid: args.diagram_content,
     disallowedFeatures: args.disallowed_features,
     limits: args.limits,

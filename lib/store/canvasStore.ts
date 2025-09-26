@@ -1,23 +1,45 @@
 import { create } from "zustand";
 import {
   mapMermaidToExcalidrawIds,
-  detectNewElements,
   remapManualElements,
 } from "@/lib/utils/mappingIds";
 import { extractCanvasContext } from "@/lib/agent/listeningAgent/tools/utils";
 
 // Define types based on what we know is available
-type ExcalidrawAPI = any; // We'll use any for now since imports are tricky
-type ExcalidrawElement = any;
-type ExcalidrawElementSkeleton = any;
+interface ExcalidrawAPI {
+  updateScene: (scene: { elements: ExcalidrawElement[] }) => void;
+}
+
+interface ExcalidrawElement {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  [key: string]: unknown;
+}
+
+interface ExcalidrawElementSkeleton {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  [key: string]: unknown;
+}
 
 // Dynamic import helper for client-side only
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let convertToExcalidrawElements: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let parseMermaidToExcalidraw: any = null;
 
 const getConvertToExcalidrawElements = async () => {
   if (typeof window === "undefined") {
     // Server-side rendering, return a no-op function
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (skeletons: any[]) => skeletons;
   }
 
@@ -67,6 +89,7 @@ interface CanvasState {
   // Utility actions
   clearCanvas: () => void;
   getElementById: (id: string) => ExcalidrawElement | undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getCanvasContext: () => any;
 }
 

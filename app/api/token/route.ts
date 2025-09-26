@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 // Minimal types for the OpenAI Realtime API
 interface RealtimeSessionConfig {
@@ -33,9 +33,9 @@ const sessionConfig: RealtimeSessionConfig = {
   },
 };
 
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<OpenAITokenResponse | ErrorResponse>> {
+export async function GET(): Promise<
+  NextResponse<OpenAITokenResponse | ErrorResponse>
+> {
   try {
     // Validate OpenAI API key exists
     const apiKey = process.env.OPENAI_API_KEY;

@@ -26,7 +26,20 @@ const getResponseFromDiagramAgentTool = tool({
     const canvasContext = getCanvasStore().getCanvasContext();
 
     // form body for using the response api
-    const body: any = {
+    const body: {
+      model: string;
+      instructions: string;
+      input: Array<{
+        type: string;
+        role?: string;
+        content?: string;
+        call_id?: string;
+        name?: string;
+        arguments?: string;
+        output?: string;
+      }>;
+      tools: unknown[];
+    } = {
       model: "gpt-4.1-mini",
       instructions: DIAGRAM_AGENT_PROMPT,
       input: [
@@ -63,7 +76,7 @@ const getResponseFromDiagramAgentTool = tool({
     }
 
     const finalText = await handleToolCalls(body, response);
-    if ((finalText as any)?.error) {
+    if (typeof finalText === 'object' && finalText !== null && 'error' in finalText) {
       return { error: "Something went wrong." };
     }
 

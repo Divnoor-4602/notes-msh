@@ -6,9 +6,9 @@ export interface IdMapping {
  * Detects which elements are new by comparing with previous elements.
  */
 export function detectNewElements(
-  currentElements: any[],
-  previousElements: any[]
-): any[] {
+  currentElements: Array<{ id?: string }>,
+  previousElements: Array<{ id?: string }>
+): Array<{ id?: string }> {
   // Handle edge cases
   if (!currentElements || !previousElements) {
     return currentElements || [];
@@ -33,7 +33,9 @@ export function detectNewElements(
 }
 
 export function createIdMapping(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   originalSkeletons: any[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   convertedElements: any[]
 ): IdMapping {
   const mapping: IdMapping = {};
@@ -46,14 +48,15 @@ export function createIdMapping(
 
   const subgraphContainers = rectangles.filter(
     (rect) =>
-      (rect.width > 80 || rect.height > 80) &&
-      (rect.width > rect.height * 2 || rect.height > rect.width * 2)
+      ((rect.width ?? 0) > 80 || (rect.height ?? 0) > 80) &&
+      ((rect.width ?? 0) > (rect.height ?? 0) * 2 ||
+        (rect.height ?? 0) > (rect.width ?? 0) * 2)
   );
   const nodeRectangles = rectangles.filter(
     (rect) => !subgraphContainers.includes(rect)
   );
 
-  subgraphContainers.forEach((container, index) => {
+  subgraphContainers.forEach((container) => {
     const containerText = textElements.find(
       (text) =>
         text.containerId === container.id &&
@@ -126,7 +129,12 @@ export function createIdMapping(
         mapping[skeleton.end.id]
     );
 
-    if (originalArrow && originalArrow.id) {
+    if (
+      originalArrow &&
+      originalArrow.id &&
+      originalArrow.start &&
+      originalArrow.end
+    ) {
       const startElement = convertedElements.find(
         (el) => el.id === arrow.startBinding?.elementId
       );
@@ -187,8 +195,10 @@ export function createIdMapping(
 }
 
 export function remapElementsWithOriginalIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements: any[],
   idMapping: IdMapping
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any[] {
   const remappedElements = elements.map((element) => {
     const newElement = { ...element };
@@ -220,6 +230,7 @@ export function remapElementsWithOriginalIds(
     }
 
     if (element.boundElements) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       newElement.boundElements = element.boundElements.map((boundEl: any) => {
         if (boundEl.id && idMapping[boundEl.id]) {
           return {
@@ -245,7 +256,11 @@ export function remapElementsWithOriginalIds(
   return remappedElements;
 }
 
-function centerElementsOnScreen(elements: any[]): any[] {
+function centerElementsOnScreen(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any[] {
   if (elements.length === 0) return elements;
 
   let minX = Infinity,
@@ -289,8 +304,11 @@ function centerElementsOnScreen(elements: any[]): any[] {
 }
 
 export function mapMermaidToExcalidrawIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   originalSkeletons: any[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   convertedElements: any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any[] {
   const idMapping = createIdMapping(originalSkeletons, convertedElements);
   const remappedElements = remapElementsWithOriginalIds(
@@ -308,6 +326,7 @@ export function mapMermaidToExcalidrawIds(
  * This ensures manual elements have semantic IDs similar to voice-generated elements.
  */
 export function createManualElementIdMapping(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements: any[],
   existingIds: Set<string>
 ): IdMapping {
@@ -336,8 +355,8 @@ export function createManualElementIdMapping(
       .replace(/[^a-zA-Z0-9\s]/g, "") // Remove special chars
       .replace(/\s+/g, " ") // Normalize spaces
       .split(" ")
-      .map((word, index) => {
-        if (index === 0) return word.toLowerCase();
+      .map((word, wordIndex) => {
+        if (wordIndex === 0) return word.toLowerCase();
         return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
       })
       .join("");
@@ -431,8 +450,10 @@ export function createManualElementIdMapping(
  * This makes manual elements have meaningful IDs like voice-generated ones.
  */
 export function remapManualElements(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements: any[],
   existingIds: Set<string>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any[] {
   const idMapping = createManualElementIdMapping(elements, existingIds);
 

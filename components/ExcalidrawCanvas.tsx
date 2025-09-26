@@ -5,9 +5,13 @@ import { useEffect, useState } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { useCanvasStore } from "@/lib/store/canvasStore";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalidrawAPI = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalidrawElement = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AppState = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type BinaryFiles = any;
 
 const Excalidraw = dynamic(
@@ -42,6 +46,8 @@ export default function ExcalidrawCanvas() {
     appState: AppState,
     files: BinaryFiles
   ) => {
+    void appState; // Suppress unused variable warning
+    void files; // Suppress unused variable warning
     // Use remapping to give manual elements semantic IDs
     syncFromExcalidrawWithRemapping([...elements]);
   };

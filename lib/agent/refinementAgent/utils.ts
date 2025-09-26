@@ -9,7 +9,14 @@ import type { CreateAgentOptions } from "@/lib/validations/tool.schema";
  * Request body structure for refinement agent
  */
 export interface RefinementAgentRequest {
-  input: string | any[]; // Can be string or agent input items array
+  input:
+    | string
+    | Array<{
+        type: string;
+        role?: string;
+        content?: string;
+        [key: string]: unknown;
+      }>; // Can be string or agent input items array
   agentOptions?: CreateAgentOptions;
   runOptions?: {
     // TODO: Add proper run options types when ready
@@ -27,9 +34,9 @@ export interface RefinementAgentRequest {
 export interface RefinementAgentResponse {
   success: boolean;
   finalOutput?: string | unknown;
-  output?: any[];
-  newItems?: any[];
-  state?: any;
+  output?: Array<unknown>;
+  newItems?: Array<unknown>;
+  state?: Record<string, unknown>;
   lastAgent?: string;
   error?: string;
   // TODO: Add usage information when ready
@@ -79,15 +86,31 @@ export async function fetchRefinementResponse(
  * TODO: Implement proper tool call handling when ready
  */
 export async function handleRefinementToolCalls(
-  toolCalls: any[],
-  addBreadcrumb?: (title: string, data?: any) => void
-): Promise<any[]> {
+  toolCalls: Array<{
+    id: string;
+    name: string;
+    [key: string]: unknown;
+  }>,
+  addBreadcrumb?: (title: string, data?: unknown) => void
+): Promise<
+  Array<{
+    toolCallId: string;
+    result: string;
+    success: boolean;
+    error?: string;
+  }>
+> {
   // TODO: Implement tool call handling logic
   // TODO: Add context passing to tools
   // TODO: Add error handling for tool failures
   // TODO: Add parallel tool execution when ready
 
-  const results: any[] = [];
+  const results: Array<{
+    toolCallId: string;
+    result: string;
+    success: boolean;
+    error?: string;
+  }> = [];
 
   for (const toolCall of toolCalls) {
     try {
@@ -132,7 +155,7 @@ export async function handleRefinementToolCalls(
  * Process refinement agent output
  * TODO: Implement proper output processing when ready
  */
-export function processRefinementOutput(output: any): any {
+export function processRefinementOutput(output: unknown): unknown {
   // TODO: Extract meaningful data from output
   // TODO: Format output for UI consumption
   // TODO: Validate output structure
@@ -147,7 +170,8 @@ export function processRefinementOutput(output: any): any {
  */
 export function extractRefinementSuggestions(
   response: RefinementAgentResponse
-): any[] {
+): Array<unknown> {
+  void response; // Suppress unused variable warning
   // TODO: Parse response for refinement suggestions
   // TODO: Categorize suggestions by type
   // TODO: Priority/importance scoring
@@ -163,6 +187,7 @@ export function extractRefinementSuggestions(
 export function validateRefinementRequest(
   request: RefinementAgentRequest
 ): boolean {
+  void request; // Suppress unused variable warning
   // TODO: Validate input structure
   // TODO: Validate agent options
   // TODO: Validate run options
@@ -177,7 +202,7 @@ export function validateRefinementRequest(
  */
 export async function streamRefinementResponse(
   request: RefinementAgentRequest,
-  onChunk?: (chunk: any) => void,
+  onChunk?: (chunk: unknown) => void,
   options?: { signal?: AbortSignal }
 ): Promise<RefinementAgentResponse> {
   // TODO: Implement streaming response handling

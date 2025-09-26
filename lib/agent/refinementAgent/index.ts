@@ -40,7 +40,7 @@ export function getRefinementAgentConfig(opts: CreateAgentOptions = {}) {
   return {
     name: "refinement_agent",
     instructions: systemPrompt,
-    tools: tools.map((t) => t.tool) as any,
+    tools: tools.map((t) => t.tool),
     // TODO: Add output type configuration when ready
     // TODO: Add model settings when ready
     // TODO: Add guardrails when ready

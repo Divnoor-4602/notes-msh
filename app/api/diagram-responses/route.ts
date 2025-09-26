@@ -45,14 +45,31 @@ export async function POST(req: NextRequest) {
   }
 }
 
+interface RequestBody {
+  model: string;
+  instructions: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  input: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tools: any[];
+  isNewerTranscript?: boolean;
+}
+
+interface ErrorResponse {
+  response?: {
+    status: number;
+    headers?: Headers;
+  };
+}
+
 async function structuredResponse(
   openai: OpenAI,
-  body: any,
+  body: RequestBody,
   tReceived: number,
   requestId: string,
   abortController: AbortController
 ) {
-  let lastError: any;
+  let lastError: Error | ErrorResponse | undefined;
   let attempt = 0;
 
   while (attempt <= MAX_RETRIES) {
@@ -78,6 +95,7 @@ async function structuredResponse(
 
       // Make OpenAI request with abort signal (remove custom parameters)
       const { isNewerTranscript, ...openaiBody } = body;
+      void isNewerTranscript; // Suppress unused variable warning
       const openaiPromise = openai.responses.parse(
         {
           ...openaiBody,
@@ -91,17 +109,17 @@ async function structuredResponse(
       const response = (await Promise.race([
         openaiPromise,
         timeoutPromise,
-      ])) as any;
+      ])) as {
+        output?: Array<{ type: string }>;
+        usage?: { total_tokens?: number };
+      };
 
       const tAfter = Date.now();
       const durationMs = tAfter - tBefore;
-      const endToEndMs = tAfter - tReceived;
 
       // Count function calls in response
       const outputItems = response.output || [];
-      const functionCallCount = outputItems.filter(
-        (item: any) => item.type === "function_call"
-      ).length;
+      void outputItems; // Suppress unused variable warning
 
       console.log("[responses] success", {
         requestId,
@@ -113,7 +131,7 @@ async function structuredResponse(
       activeRequests.delete(requestId);
       return NextResponse.json(response);
     } catch (attemptError) {
-      lastError = attemptError;
+      lastError = attemptError as Error | ErrorResponse;
       attempt++;
 
       // Don't retry on abort or certain errors
@@ -127,7 +145,7 @@ async function structuredResponse(
 
       // Don't retry on 4xx errors (client errors)
       if (attemptError instanceof Error && "response" in attemptError) {
-        const errorResponse = (attemptError as any).response;
+        const errorResponse = (attemptError as ErrorResponse).response;
         if (
           errorResponse?.status &&
           errorResponse.status >= 400 &&
@@ -155,8 +173,8 @@ async function structuredResponse(
   activeRequests.delete(requestId);
 
   // Log rate limit headers if available
-  if (lastError instanceof Error && "response" in lastError) {
-    const response = (lastError as any).response;
+  if (lastError && lastError instanceof Error && "response" in lastError) {
+    const response = (lastError as ErrorResponse).response;
     if (response?.headers) {
       console.error("[responses] rate-limit headers:", {
         requestId,

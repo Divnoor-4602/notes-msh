@@ -1,15 +1,5 @@
 // Context extraction utilities for LLM integration
-import {
-  validateMermaid,
-  ruleLint,
-  RuleLintInput,
-  RuleLintResult,
-  ValidateIdsInput,
-  ValidateIdsResult,
-  ParsedNode,
-  ParsedEdge,
-  validateIds,
-} from "./diagramAgentTools";
+import { ParsedNode, ParsedEdge } from "./diagramAgentTools";
 
 export interface NodeInfo {
   id: string;
@@ -65,7 +55,9 @@ export interface CanvasContext {
 
 // Phase 2: Enhanced subgraph detection and node containment
 function detectSubgraphs(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rectangles: any[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   textElements: any[]
 ): SubgraphInfo[] {
   const subgraphs: SubgraphInfo[] = [];
@@ -140,7 +132,10 @@ function findContainedNodes(
 }
 
 // Phase 2: Extract nodes, edges, and subgraphs
-export function extractCanvasContext(elements: any[]): CanvasContext {
+export function extractCanvasContext(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements: any[]
+): CanvasContext {
   // Filter elements by type
   const rectangles = elements.filter((el) => el.type === "rectangle");
   const diamonds = elements.filter((el) => el.type === "diamond");
@@ -270,18 +265,36 @@ export const diagrammingAgentTools = [
  * Other validations are now handled locally.
  */
 export async function handleToolCalls(
-  body: any,
-  response: any,
-  addBreadcrumb?: (title: string, data?: any) => void
+  body: {
+    input: Array<{
+      type: string;
+      call_id?: string;
+      name?: string;
+      arguments?: string;
+      output?: string;
+    }>;
+  },
+  response: {
+    error?: string;
+    output?: Array<{
+      type: string;
+      call_id?: string;
+      name?: string;
+      arguments?: string;
+      content?: Array<{ type: string; text: string }>;
+    }>;
+  },
+  addBreadcrumb?: (title: string, data?: unknown) => void
 ) {
+  void addBreadcrumb; // Suppress unused variable warning
   let currentResponse = response;
 
   while (true) {
     if (currentResponse?.error) {
-      return { error: "Something went wrong." } as any;
+      return { error: "Something went wrong." };
     }
 
-    const outputItems: any[] = currentResponse.output ?? [];
+    const outputItems = currentResponse.output ?? [];
 
     // Gather all function calls in the output.
     const functionCalls = outputItems.filter(
@@ -295,11 +308,11 @@ export async function handleToolCalls(
       );
 
       const finalText = assistantMessages
-        .map((msg: any) => {
+        .map((msg) => {
           const contentArr = msg.content ?? [];
           return contentArr
-            .filter((c: any) => c.type === "output_text")
-            .map((c: any) => c.text)
+            .filter((c) => c.type === "output_text")
+            .map((c) => c.text)
             .join("");
         })
         .join("\n");
@@ -356,7 +369,7 @@ export async function handleToolCalls(
 
 // Responses and tool calls utils
 export async function fetchResponsesMessage(
-  body: any,
+  body: Record<string, unknown>,
   options?: { signal?: AbortSignal; isNewerTranscript?: boolean }
 ) {
   const response = await fetch("/api/diagram-responses", {
@@ -485,6 +498,7 @@ export function parseMermaidStructure(mermaidCode: string): {
 
     for (const match of multiEdgeMatches) {
       const [, source, connector, targetsStr] = match;
+      void connector; // Suppress unused variable warning
       const targets = targetsStr.split("&").map((t) => t.trim());
 
       for (const target of targets) {

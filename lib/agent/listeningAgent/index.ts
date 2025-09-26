@@ -24,7 +24,7 @@ export function createListeningAgent(
   const agent = new RealtimeAgent({
     name: "listening_agent",
     instructions: systemPrompt,
-    tools: tools.map((t) => t.tool) as any,
+    tools: tools.map((t) => t.tool),
   });
 
   return agent;

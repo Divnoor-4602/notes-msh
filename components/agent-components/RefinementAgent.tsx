@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { fetchRefinementResponse } from "../../lib/agent/refinementAgent/utils";
-import type { RefinementAgentResponse } from "../../lib/agent/refinementAgent/utils";
 
 export default function RefinementAgent() {
   const [isRunning, setIsRunning] = useState(false);

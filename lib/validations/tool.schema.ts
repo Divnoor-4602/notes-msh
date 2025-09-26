@@ -1,4 +1,3 @@
-import type { tool } from "@openai/agents";
 import { z } from "zod";
 
 export type ToolName = string;
@@ -10,7 +9,8 @@ export type ToolDoc = {
 };
 
 export type RegisteredTool = {
-  tool: ReturnType<typeof tool<any, any>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tool: any;
   docs: ToolDoc;
   category?: "text" | "shape" | "arrow" | "frame" | "binding" | "meta";
 };
@@ -18,7 +18,7 @@ export type RegisteredTool = {
 export type CreateAgentOptions =
   | { include?: string[]; exclude?: never }
   | { include?: never; exclude?: string[] }
-  | {};
+  | Record<string, never>;
 
 // Common validation schemas for tool parameters
 export const PositionSchema = z.object({
