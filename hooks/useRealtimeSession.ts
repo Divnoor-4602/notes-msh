@@ -96,12 +96,12 @@ export function useRealtimeSession() {
           transport: new OpenAIRealtimeWebRTC({
             // Enable both input and output audio
           }),
-          model: "gpt-4o-mini-realtime-preview-2024-12-17",
+          model: "gpt-realtime-2025-08-28",
           config: {
             inputAudioFormat: "pcm16",
             outputAudioFormat: "pcm16",
             inputAudioTranscription: {
-              model: "gpt-4o-mini-transcribe",
+              model: "gpt-4o-transcribe",
             },
             turnDetection: {
               type: "server_vad",
