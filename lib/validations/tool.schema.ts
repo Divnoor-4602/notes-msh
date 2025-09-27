@@ -15,10 +15,7 @@ export type RegisteredTool = {
   category?: "text" | "shape" | "arrow" | "frame" | "binding" | "meta";
 };
 
-export type CreateAgentOptions =
-  | { include?: string[]; exclude?: never }
-  | { include?: never; exclude?: string[] }
-  | Record<string, never>;
+export type CreateAgentOptions = { include?: string[]; exclude?: never } | { include?: never; exclude?: string[] } | Record<string, never>;
 
 // Common validation schemas for tool parameters
 export const PositionSchema = z.object({
@@ -36,20 +33,13 @@ export const ColorSchema = z
   .regex(/^#[0-9A-Fa-f]{6}$/)
   .describe("Hex color code (e.g., #000000)");
 
-export const StrokeWidthSchema = z
-  .number()
-  .positive()
-  .max(20)
-  .describe("Stroke width in pixels (1-20)");
+export const StrokeWidthSchema = z.number().positive().max(20).describe("Stroke width in pixels (1-20)");
 
-// get response from diagram agent tool schema - updated for conversational flow
+// get response from diagram agent tool schema - updated for instruction-based flow
 export const GetResponseFromDiagramAgentParameterSchema = z.object({
-  fullTranscript: z
+  specificInstruction: z
     .string()
-    .describe("Complete conversation transcript up to this point"),
-  currentMermaidCode: z
-    .string()
-    .nullable()
-    .describe("Current mermaid code as source of truth"),
-  recentContext: z.string().nullable().describe("Recent relevant context"),
+    .describe("Specific instruction for what to draw and where (e.g., 'Add login page horizontally to the right of authentication flow')"),
+  currentMermaidCode: z.string().nullable().describe("Current mermaid code as source of truth"),
+  layoutHint: z.enum(["TD", "TB", "LR", "RL", "BT"]).nullable().describe("Suggested layout direction for the diagram"),
 });

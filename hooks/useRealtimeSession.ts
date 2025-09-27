@@ -22,9 +22,7 @@ export interface ConnectOptions {
 export function useRealtimeSession() {
   const sessionRef = useRef<RealtimeSession | null>(null);
   const [status, setStatus] = useState<SessionStatus>("DISCONNECTED");
-  const onTranscriptionRef = useRef<
-    ((event: TranscriptionEvent) => void) | null
-  >(null);
+  const onTranscriptionRef = useRef<((event: TranscriptionEvent) => void) | null>(null);
   const transcriptAccumulatorRef = useRef<TranscriptAccumulator | null>(null);
   // Transcript accumulation for debugging/reference
 
@@ -39,12 +37,19 @@ export function useRealtimeSession() {
     // Handle transcription events
     switch (event.type) {
       case "conversation.item.input_audio_transcription.completed": {
+        // Console log the GPT-4o transcription output
+        console.log("🎤 GPT-4o Transcription Event:", {
+          type: event.type,
+          transcript: event.transcript,
+          timestamp: new Date().toISOString(),
+          rawEvent: event,
+        });
+
         // Add transcript to accumulator
         if (transcriptAccumulatorRef.current && event.transcript) {
-          transcriptAccumulatorRef.current.addChunk(
-            event.transcript,
-            Date.now()
-          );
+          transcriptAccumulatorRef.current.addChunk(event.transcript, Date.now());
+          console.log("📝 Added to accumulator:", event.transcript);
+          console.log("📊 Accumulator state:", transcriptAccumulatorRef.current.getDebugInfo());
         }
 
         if (onTranscriptionRef.current && event.transcript) {
@@ -53,6 +58,7 @@ export function useRealtimeSession() {
             text: event.transcript,
             timestamp: Date.now(),
           });
+          console.log("🔔 Fired transcription callback with:", event.transcript);
         }
 
         // DO NOT send transcript as separate message - it's already handled by transcription
@@ -62,6 +68,11 @@ export function useRealtimeSession() {
         // For now, let the agent decide via turn detection or we can add logic later
         break;
       }
+      default:
+        // Log other transport events for debugging
+        if (event.type && event.type.includes("transcription")) {
+          console.log("🎵 Other transcription event:", event.type, event);
+        }
     }
   }, []);
 
@@ -81,7 +92,7 @@ export function useRealtimeSession() {
         // Create the listening agent with tools
         const agent = createListeningAgent();
 
-        sessionRef.current = new RealtimeSession(agent, {
+        const sessionConfig = {
           transport: new OpenAIRealtimeWebRTC({
             // Enable both input and output audio
           }),
@@ -99,7 +110,16 @@ export function useRealtimeSession() {
               silenceDurationMs: 500,
             },
           },
+        };
+
+        console.log("🔧 Creating RealtimeSession with config:", {
+          model: sessionConfig.model,
+          transcriptionModel: sessionConfig.config.inputAudioTranscription.model,
+          vadThreshold: sessionConfig.config.turnDetection.threshold,
+          silenceDurationMs: sessionConfig.config.turnDetection.silenceDurationMs,
         });
+
+        sessionRef.current = new RealtimeSession(agent, sessionConfig);
 
         // Set up event handlers
         sessionRef.current.on("transport_event", handleTransportEvent);

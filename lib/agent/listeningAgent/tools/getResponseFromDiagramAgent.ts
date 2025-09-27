@@ -1,30 +1,29 @@
-import {
-  GetResponseFromDiagramAgentParameterSchema,
-  type RegisteredTool,
-} from "@/lib/validations/tool.schema";
+import { GetResponseFromDiagramAgentParameterSchema, type RegisteredTool } from "@/lib/validations/tool.schema";
 import { tool } from "@openai/agents";
 import { DIAGRAM_AGENT_PROMPT } from "../prompts";
-import {
-  fetchResponsesMessage,
-  diagrammingAgentTools,
-  handleToolCalls,
-  extractMermaidCode,
-} from "./utils";
+import { fetchResponsesMessage, diagrammingAgentTools, handleToolCalls, extractMermaidCode } from "./utils";
 import { getCanvasStore } from "@/lib/store/canvasStore";
 import { validateMermaid, ruleLint } from "./diagramAgentTools";
 
 // tool definition for the diagramming agent:
 export const diagrammingAgentTool = [];
 
-// tool to get a response from the diagram agent for micro-updates
+// tool to get a response from the diagram agent for instruction execution
 const getResponseFromDiagramAgentTool = tool({
   name: "get_response_from_diagram_agent",
-  description: "Get a response from the diagram agent",
+  description: "Execute specific diagram instruction with layout awareness",
   parameters: GetResponseFromDiagramAgentParameterSchema,
-  execute: async ({ fullTranscript, currentMermaidCode, recentContext }) => {
-    // Get current mermaid code as source of truth
-    const sourceMermaidCode =
-      currentMermaidCode || getCanvasStore().getCurrentMermaidCode() || "";
+  execute: async ({ specificInstruction, currentMermaidCode, layoutHint }) => {
+    // ALWAYS get fresh current mermaid code as source of truth
+    const sourceMermaidCode = getCanvasStore().getCurrentMermaidCode() || "";
+
+    console.log("🤖 Listening Agent → Diagram Agent Tool Call:", {
+      specificInstruction,
+      providedMermaidCode: currentMermaidCode,
+      freshMermaidCode: sourceMermaidCode,
+      layoutHint,
+      timestamp: new Date().toISOString(),
+    });
 
     // form body for using the response api
     const body: {
@@ -47,18 +46,14 @@ const getResponseFromDiagramAgentTool = tool({
         {
           type: "message",
           role: "user",
-          content: `=====Full Conversation Transcript=======
-          ${fullTranscript}
+          content: `=====Specific Instruction=======
+          ${specificInstruction}
 
           =====Current Mermaid Code (Source of Truth)=====
-          ${
-            sourceMermaidCode
-              ? `\`\`\`mermaid\n${sourceMermaidCode}\n\`\`\``
-              : "No existing diagram"
-          }
+          ${sourceMermaidCode ? `\`\`\`mermaid\n${sourceMermaidCode}\n\`\`\`` : "No existing diagram"}
 
-          =====Recent Context=======
-          ${recentContext || "No recent context"}`,
+          =====Layout Direction Hint=======
+          ${layoutHint ? `Suggested direction: ${layoutHint}` : "Choose appropriate direction based on instruction and existing layout"}`,
         },
       ],
       tools: diagrammingAgentTools,
@@ -70,11 +65,7 @@ const getResponseFromDiagramAgentTool = tool({
     }
 
     const finalText = await handleToolCalls(body, response);
-    if (
-      typeof finalText === "object" &&
-      finalText !== null &&
-      "error" in finalText
-    ) {
+    if (typeof finalText === "object" && finalText !== null && "error" in finalText) {
       return { error: "Something went wrong." };
     }
 
@@ -98,15 +89,11 @@ const getResponseFromDiagramAgentTool = tool({
         // Step 1: Rule lint validation
         const ruleLintResult = ruleLint({
           mermaid: finalMermaidCode,
-          directionDefault: "TD",
+          directionDefault: layoutHint || "TD",
         });
 
         if (!ruleLintResult.ok) {
-          const violations = ruleLintResult.violations
-            .map(
-              (v) => `${v.code}: ${v.message}${v.hint ? ` (${v.hint})` : ""}`
-            )
-            .join("; ");
+          const violations = ruleLintResult.violations.map((v) => `${v.code}: ${v.message}${v.hint ? ` (${v.hint})` : ""}`).join("; ");
 
           if (validationAttempt === maxRetries - 1) {
             return {
@@ -124,8 +111,7 @@ const getResponseFromDiagramAgentTool = tool({
               {
                 type: "message",
                 role: "user",
-                content:
-                  "Please fix the violations and return only a corrected ```mermaid code block.",
+                content: "Please fix the violations and return only a corrected ```mermaid code block.",
               },
             ],
             tools: [],
@@ -155,10 +141,7 @@ const getResponseFromDiagramAgentTool = tool({
         const validationResult = await validateMermaid(finalMermaidCode);
 
         if (!validationResult.success || !validationResult.valid) {
-          const error =
-            validationResult.error ||
-            validationResult.message ||
-            "Unknown validation error";
+          const error = validationResult.error || validationResult.message || "Unknown validation error";
 
           if (validationAttempt === maxRetries - 1) {
             return {
@@ -176,8 +159,7 @@ const getResponseFromDiagramAgentTool = tool({
               {
                 type: "message",
                 role: "user",
-                content:
-                  "Please fix the syntax error and return only a corrected ```mermaid code block.",
+                content: "Please fix the syntax error and return only a corrected ```mermaid code block.",
               },
             ],
             tools: [],
@@ -189,8 +171,7 @@ const getResponseFromDiagramAgentTool = tool({
 
           if (!retryMermaidCode) {
             return {
-              error:
-                "Failed to extract corrected Mermaid code from syntax retry",
+              error: "Failed to extract corrected Mermaid code from syntax retry",
               details: error,
               mermaidCode: finalMermaidCode,
             };
@@ -208,10 +189,7 @@ const getResponseFromDiagramAgentTool = tool({
         if (validationAttempt === maxRetries - 1) {
           return {
             error: "Validation error after 5 attempts",
-            details:
-              validationError instanceof Error
-                ? validationError.message
-                : "Unknown validation error",
+            details: validationError instanceof Error ? validationError.message : "Unknown validation error",
             mermaidCode: finalMermaidCode,
           };
         }
@@ -221,10 +199,15 @@ const getResponseFromDiagramAgentTool = tool({
 
     // Add the validated Mermaid diagram directly to the canvas
     try {
+      console.log("🎨 About to update canvas with:", {
+        existing: sourceMermaidCode ? "YES" : "NO",
+        newCode: finalMermaidCode.substring(0, 100) + "...",
+      });
+
       await getCanvasStore().addMermaidDiagram(finalMermaidCode);
       return {
         success: true,
-        message: "Diagram added to canvas successfully",
+        message: "Diagram instruction executed successfully",
         mermaidCode: finalMermaidCode,
       };
     } catch (error) {
@@ -240,9 +223,8 @@ export const getResponseFromDiagramAgent: RegisteredTool = {
   tool: getResponseFromDiagramAgentTool,
   docs: {
     name: "get_response_from_diagram_agent",
-    summary: "Create or update diagram based on conversation context",
-    usage:
-      "Call with { fullTranscript, currentMermaidCode, recentContext } when ready to create/update diagram.",
+    summary: "Execute specific diagram instruction with layout awareness",
+    usage: "Call with { specificInstruction, currentMermaidCode, layoutHint } to execute precise diagram modifications.",
   },
   category: "meta",
 };
