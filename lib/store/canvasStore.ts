@@ -75,23 +75,17 @@ interface CanvasState {
 
   // Actions for element management - using skeleton approach (now async)
   addElementSkeleton: (skeleton: ExcalidrawElementSkeleton) => Promise<void>;
-  addElementsSkeleton: (
-    skeletons: ExcalidrawElementSkeleton[]
-  ) => Promise<void>;
+  addElementsSkeleton: (skeletons: ExcalidrawElementSkeleton[]) => Promise<void>;
   addMermaidDiagram: (diagramDefinition: string) => Promise<void>;
   updateElements: (elements: ExcalidrawElement[]) => void;
   syncFromExcalidraw: (elements: ExcalidrawElement[]) => void;
-  syncFromExcalidrawWithMermaidGeneration: (
-    elements: ExcalidrawElement[]
-  ) => void;
+  syncFromExcalidrawWithMermaidGeneration: (elements: ExcalidrawElement[]) => void;
   generateMermaidFromCanvas: () => Promise<void>;
   syncToExcalidraw: () => void;
 
   // Utility actions
   clearCanvas: () => void;
   getElementById: (id: string) => ExcalidrawElement | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getCanvasContext: () => any;
   getCurrentMermaidCode: () => string | null;
 }
 
@@ -209,9 +203,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     // Check if we're already processing a diagram or generating Mermaid
     const state = get();
     if (state.isProcessingDiagram || state.isGeneratingMermaid) {
-      console.log(
-        "Skipping diagram processing - Mermaid generation or diagram processing in progress"
-      );
+      console.log("Skipping diagram processing - Mermaid generation or diagram processing in progress");
       return;
     }
 
@@ -229,10 +221,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         return;
       }
 
-      // Get current canvas context to determine if this is incremental
-      const currentContext = get().getCanvasContext();
-      hasExistingElements =
-        currentContext.nodes.length > 0 || currentContext.edges.length > 0;
+      // Check if there are existing elements by looking at current mermaid code
+      const currentMermaidCode = get().currentMermaidCode;
+      hasExistingElements = currentMermaidCode !== null && currentMermaidCode.length > 0;
 
       if (hasExistingElements) {
         // INCREMENTAL MODE: Replace entire canvas with new diagram
@@ -291,10 +282,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }
 
       // Handle specific error cases
-      if (
-        error instanceof Error &&
-        error.message.includes("has already been registered")
-      ) {
+      if (error instanceof Error && error.message.includes("has already been registered")) {
         return;
       }
 
@@ -332,17 +320,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const currentState = get();
 
     // Check if this is a meaningful change (not just canvas movement)
-    const hasElementCountChanged =
-      elements.length !== currentState.lastSyncedElements.length;
+    const hasElementCountChanged = elements.length !== currentState.lastSyncedElements.length;
     const hasElementsChanged =
       hasElementCountChanged ||
       elements.some((el, index) => {
         const lastEl = currentState.lastSyncedElements[index];
-        return (
-          !lastEl ||
-          el.id !== lastEl.id ||
-          JSON.stringify(el) !== JSON.stringify(lastEl)
-        );
+        return !lastEl || el.id !== lastEl.id || JSON.stringify(el) !== JSON.stringify(lastEl);
       });
 
     // Only proceed if there are meaningful changes
@@ -363,11 +346,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     });
 
     // Skip Mermaid generation for empty canvas or if already processing
-    if (
-      elements.length === 0 ||
-      currentState.isProcessingDiagram ||
-      currentState.isGeneratingMermaid
-    ) {
+    if (elements.length === 0 || currentState.isProcessingDiagram || currentState.isGeneratingMermaid) {
       console.log("⏸️ Skipping Mermaid generation:", {
         isEmpty: elements.length === 0,
         isProcessingDiagram: currentState.isProcessingDiagram,
@@ -379,18 +358,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     // Clear existing timeout to implement debouncing
     if (currentState.mermaidGenerationTimeout) {
       clearTimeout(currentState.mermaidGenerationTimeout);
-      console.log(
-        "⏰ Previous Mermaid generation cancelled - new changes detected"
-      );
+      console.log("⏰ Previous Mermaid generation cancelled - new changes detected");
     }
 
     // Trigger Mermaid generation after a delay (debounced)
     const timeoutId = setTimeout(() => {
       const latestState = get();
-      if (
-        !latestState.isProcessingDiagram &&
-        !latestState.isGeneratingMermaid
-      ) {
+      if (!latestState.isProcessingDiagram && !latestState.isGeneratingMermaid) {
         console.log("🔄 Triggering Mermaid generation for meaningful changes");
         latestState.generateMermaidFromCanvas();
       }
@@ -408,9 +382,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
     // Check if voice agent is processing or already generating Mermaid
     if (state.isProcessingDiagram || state.isGeneratingMermaid) {
-      console.log(
-        "Skipping Mermaid generation - diagram processing or Mermaid generation in progress"
-      );
+      console.log("Skipping Mermaid generation - diagram processing or Mermaid generation in progress");
       return;
     }
 
@@ -418,14 +390,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set({ isGeneratingMermaid: true });
 
     try {
-      const { generateMermaidFromCanvas } = await import(
-        "@/lib/agent/mermaidAgent/utils"
-      );
+      const { generateMermaidFromCanvas } = await import("@/lib/agent/mermaidAgent/utils");
 
-      const response = await generateMermaidFromCanvas(
-        state.elements,
-        state.currentMermaidCode
-      );
+      const response = await generateMermaidFromCanvas(state.elements, state.currentMermaidCode);
 
       if (response.success && response.mermaidCode) {
         set({ currentMermaidCode: response.mermaidCode });
@@ -472,21 +439,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   getElementById: (id: string) => {
     const { elements } = get();
     return elements.find((el) => el.id === id);
-  },
-
-  getCanvasContext: () => {
-    // Legacy method - new architecture uses mermaid code as source of truth
-    // Return empty context to maintain compatibility
-    return {
-      nodes: [],
-      edges: [],
-      subgraphs: [],
-      textElements: [],
-      usedNodeIds: [],
-      usedEdgeIds: [],
-      existingLabels: [],
-      specialLabels: [],
-    };
   },
 
   getCurrentMermaidCode: () => {

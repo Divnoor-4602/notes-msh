@@ -40,7 +40,7 @@ const getResponseFromDiagramAgentTool = tool({
       }>;
       tools: unknown[];
     } = {
-      model: "gpt-4.1-mini",
+      model: "gpt-4.1",
       instructions: DIAGRAM_AGENT_PROMPT,
       input: [
         {
@@ -105,7 +105,7 @@ const getResponseFromDiagramAgentTool = tool({
 
           // Retry with LLM to fix violations
           const retryBody = {
-            model: "gpt-4.1-mini",
+            model: "gpt-4.1",
             instructions: `Fix the following Mermaid diagram violations and return only the corrected mermaid code block:\n\nViolations: ${violations}\n\nOriginal code:\n${finalMermaidCode}`,
             input: [
               {
@@ -153,7 +153,7 @@ const getResponseFromDiagramAgentTool = tool({
 
           // Retry with LLM to fix syntax issues
           const retryBody = {
-            model: "gpt-4.1-mini",
+            model: "gpt-4.1",
             instructions: `Fix the following Mermaid syntax error and return only the corrected mermaid code block:\n\nSyntax Error: ${error}\n\nOriginal code:\n${finalMermaidCode}`,
             input: [
               {
