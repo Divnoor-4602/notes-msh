@@ -11,7 +11,7 @@ import {
   extractMermaidCode,
 } from "./utils";
 import { getCanvasStore } from "@/lib/store/canvasStore";
-import { validateMermaid, ruleLint, validateIds } from "./diagramAgentTools";
+import { validateMermaid, ruleLint } from "./diagramAgentTools";
 
 // tool definition for the diagramming agent:
 export const diagrammingAgentTool = [];
@@ -21,9 +21,10 @@ const getResponseFromDiagramAgentTool = tool({
   name: "get_response_from_diagram_agent",
   description: "Get a response from the diagram agent",
   parameters: GetResponseFromDiagramAgentParameterSchema,
-  execute: async ({ currentChunkText, recentContext }) => {
-    // Get current canvas context from client-side store
-    const canvasContext = getCanvasStore().getCanvasContext();
+  execute: async ({ fullTranscript, currentMermaidCode, recentContext }) => {
+    // Get current mermaid code as source of truth
+    const sourceMermaidCode =
+      currentMermaidCode || getCanvasStore().getCurrentMermaidCode() || "";
 
     // form body for using the response api
     const body: {
@@ -46,25 +47,18 @@ const getResponseFromDiagramAgentTool = tool({
         {
           type: "message",
           role: "user",
-          content: `=====Current sentences text=======
-          ${currentChunkText}
+          content: `=====Full Conversation Transcript=======
+          ${fullTranscript}
 
-          =====Recent sentences context =======
-          Recent context: ${recentContext}`,
-        },
-        {
-          type: "function_call",
-          call_id: "canvas_context_call",
-          name: "get_current_canvas_context",
-          arguments: "{}",
-        },
-        {
-          type: "function_call_output",
-          call_id: "canvas_context_call",
-          output: JSON.stringify({
-            success: true,
-            context: canvasContext,
-          }),
+          =====Current Mermaid Code (Source of Truth)=====
+          ${
+            sourceMermaidCode
+              ? `\`\`\`mermaid\n${sourceMermaidCode}\n\`\`\``
+              : "No existing diagram"
+          }
+
+          =====Recent Context=======
+          ${recentContext || "No recent context"}`,
         },
       ],
       tools: diagrammingAgentTools,
@@ -76,7 +70,11 @@ const getResponseFromDiagramAgentTool = tool({
     }
 
     const finalText = await handleToolCalls(body, response);
-    if (typeof finalText === 'object' && finalText !== null && 'error' in finalText) {
+    if (
+      typeof finalText === "object" &&
+      finalText !== null &&
+      "error" in finalText
+    ) {
       return { error: "Something went wrong." };
     }
 
@@ -150,71 +148,10 @@ const getResponseFromDiagramAgentTool = tool({
           continue;
         }
 
-        // Step 2: ID validation
-        // In incremental mode, allow reusing existing IDs since we do complete replacement
-        const hasExistingElements =
-          canvasContext.nodes.length > 0 || canvasContext.edges.length > 0;
+        // Step 2: ID validation - REMOVED (using mermaid code as source of truth)
+        // No ID validation needed since we use mermaid code as the source of truth
 
-        const validateIdsResult = validateIds({
-          mermaid: finalMermaidCode,
-          usedNodeIds: hasExistingElements ? [] : canvasContext.usedNodeIds, // Allow reuse in incremental mode
-          usedEdgeIds: hasExistingElements ? [] : canvasContext.usedEdgeIds, // Allow reuse in incremental mode
-        });
-
-        if (!validateIdsResult.ok) {
-          const errors = validateIdsResult.errors
-            .map(
-              (e) => `${e.code}: ${e.message}${e.hint ? ` (${e.hint})` : ""}`
-            )
-            .join("; ");
-
-          if (validationAttempt === maxRetries - 1) {
-            return {
-              error: "ID validation failed after 5 attempts",
-              details: errors,
-              mermaidCode: finalMermaidCode,
-            };
-          }
-
-          // Retry with LLM to fix ID issues
-          const retryBody = {
-            model: "gpt-4.1-mini",
-            instructions: `Fix the following Mermaid diagram ID issues and return only the corrected mermaid code block:\n\nID Issues: ${errors}\n\n${
-              hasExistingElements
-                ? "Note: You can reuse existing node IDs in incremental mode."
-                : `Existing node IDs to avoid: ${canvasContext.usedNodeIds.join(
-                    ", "
-                  )}`
-            }\n\nOriginal code:\n${finalMermaidCode}`,
-            input: [
-              {
-                type: "message",
-                role: "user",
-                content:
-                  "Please fix the ID issues and return only a corrected ```mermaid code block.",
-              },
-            ],
-            tools: [],
-          };
-
-          const retryResponse = await fetchResponsesMessage(retryBody);
-          const retryText = await handleToolCalls(retryBody, retryResponse);
-          const retryMermaidCode = extractMermaidCode(retryText as string);
-
-          if (!retryMermaidCode) {
-            return {
-              error: "Failed to extract corrected Mermaid code from ID retry",
-              details: errors,
-              mermaidCode: finalMermaidCode,
-            };
-          }
-
-          finalMermaidCode = retryMermaidCode;
-          validationAttempt++;
-          continue;
-        }
-
-        // Step 3: Final Mermaid syntax validation
+        // Step 2: Final Mermaid syntax validation (renumbered after removing ID validation)
         const validationResult = await validateMermaid(finalMermaidCode);
 
         if (!validationResult.success || !validationResult.valid) {
@@ -303,9 +240,9 @@ export const getResponseFromDiagramAgent: RegisteredTool = {
   tool: getResponseFromDiagramAgentTool,
   docs: {
     name: "get_response_from_diagram_agent",
-    summary: "Get a micro-update response from the diagram agent",
+    summary: "Create or update diagram based on conversation context",
     usage:
-      "Call with { currentChunkText, recentContext? } to retrieve guidance.",
+      "Call with { fullTranscript, currentMermaidCode, recentContext } when ready to create/update diagram.",
   },
   category: "meta",
 };

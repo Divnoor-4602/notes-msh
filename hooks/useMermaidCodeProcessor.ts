@@ -1,9 +1,9 @@
 import { useRef, useCallback, useState } from "react";
+import { generateMermaidFromCanvas } from "@/lib/agent/mermaidAgent/utils";
 
-interface TranscriptData {
-  transcript: string;
-  currentChunk: string;
-  recentContext: string;
+interface MermaidProcessorData {
+  elements: unknown[];
+  currentMermaidCode: string | null;
 }
 
 interface ProcessorOptions {
@@ -12,21 +12,21 @@ interface ProcessorOptions {
 }
 
 /**
- * Hook for processing only the latest transcript, discarding intermediate ones
- * Perfect for cumulative transcript processing where only the final result matters
+ * Hook for processing manual canvas changes to generate updated Mermaid code
+ * Debounced processor for canvas element changes that generates Mermaid code
  */
-export function useLatestTranscriptProcessor(
-  processor: (data: TranscriptData) => Promise<void>,
+export function useMermaidCodeProcessor(
+  processor: (data: MermaidProcessorData) => Promise<void>,
   options: ProcessorOptions = {}
 ) {
-  // Base debounce 1000ms; we adapt this based on previous server latency
-  const { debounceMs = 1000, cooldownMs = 0 } = options;
+  // Base debounce 4000ms for manual edits; adaptive based on server latency
+  const { debounceMs = 4000, cooldownMs = 0 } = options;
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Store the latest transcript data
-  const latestDataRef = useRef<TranscriptData | null>(null);
+  // Store the latest data
+  const latestDataRef = useRef<MermaidProcessorData | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProcessedAtRef = useRef<number>(0);
   const lastDurationMsRef = useRef<number>(0);
@@ -57,16 +57,30 @@ export function useLatestTranscriptProcessor(
 
     try {
       const startedAt = Date.now();
+      console.log("🚀 Starting Mermaid generation...", {
+        processingId: currentProcessingId,
+        elementCount: dataToProcess.elements.length,
+      });
+
       await processor(dataToProcess);
+
       const finishedAt = Date.now();
       lastDurationMsRef.current = finishedAt - startedAt;
 
-      // Adaptive backoff: if last request took > 5s, bump debounce up to 2000ms next time.
-      // If fast (< 2000ms), relax back towards 1000ms.
-      if (lastDurationMsRef.current > 5000) {
-        adaptiveDebounceMsRef.current = 2000;
-      } else if (lastDurationMsRef.current < 2000) {
-        adaptiveDebounceMsRef.current = 1000;
+      console.log("⚡ Mermaid generation completed:", {
+        processingId: currentProcessingId,
+        durationMs: lastDurationMsRef.current,
+        nextDebounceMs: adaptiveDebounceMsRef.current,
+      });
+
+      // Adaptive backoff: if last request took > 8s, bump debounce up to 6000ms next time.
+      // If fast (< 3000ms), relax back towards 4000ms.
+      if (lastDurationMsRef.current > 8000) {
+        adaptiveDebounceMsRef.current = 6000;
+        console.log("🐌 Slow response detected, increasing debounce to 6000ms");
+      } else if (lastDurationMsRef.current < 3000) {
+        adaptiveDebounceMsRef.current = 4000;
+        console.log("🚀 Fast response detected, resetting debounce to 4000ms");
       }
 
       // Only update timestamp if this is still the latest processing
@@ -74,7 +88,10 @@ export function useLatestTranscriptProcessor(
         lastProcessedAtRef.current = Date.now();
       }
     } catch (error) {
-      console.error(`Processing failed (ID: ${currentProcessingId}):`, error);
+      console.error(
+        `❌ Mermaid processing failed (ID: ${currentProcessingId}):`,
+        error
+      );
     } finally {
       // Only clear processing flag if this is still the latest processing
       if (currentProcessingId === processingIdRef.current) {
@@ -84,19 +101,29 @@ export function useLatestTranscriptProcessor(
   }, [processor, cooldownMs, isProcessing]);
 
   const enqueue = useCallback(
-    (data: TranscriptData) => {
+    (data: MermaidProcessorData) => {
       // Always replace with the latest data
       latestDataRef.current = data;
       setPendingCount((prev) => prev + 1);
 
+      console.log("🔄 Mermaid generation enqueued:", {
+        elementCount: data.elements.length,
+        pendingCount: pendingCount + 1,
+        debounceMs: adaptiveDebounceMsRef.current,
+      });
+
       // Clear existing debounce timeout
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
+        console.log(
+          "⏰ Previous Mermaid generation cancelled - new changes detected"
+        );
       }
 
       // Set new debounce timeout (adaptive)
       const waitMs = adaptiveDebounceMsRef.current;
       debounceTimeoutRef.current = setTimeout(() => {
+        console.log("⚡ Starting Mermaid generation after debounce");
         processLatest();
       }, waitMs);
     },

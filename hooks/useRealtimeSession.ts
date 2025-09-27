@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { RealtimeSession, OpenAIRealtimeWebRTC } from "@openai/agents/realtime";
 import { createListeningAgent } from "../lib/agent/listeningAgent";
 import { TranscriptAccumulator } from "../lib/utils/transcript";
-import { useLatestTranscriptProcessor } from "./useLatestTranscriptProcessor";
+// Removed useLatestTranscriptProcessor - agent now decides when to respond
 
 export type SessionStatus = "DISCONNECTED" | "CONNECTING" | "CONNECTED";
 
@@ -26,89 +26,44 @@ export function useRealtimeSession() {
     ((event: TranscriptionEvent) => void) | null
   >(null);
   const transcriptAccumulatorRef = useRef<TranscriptAccumulator | null>(null);
-  // Remove old refs - now handled by useLatestTranscriptProcessor
+  // Transcript accumulation for debugging/reference
 
   const updateStatus = useCallback((s: SessionStatus) => {
     setStatus(s);
   }, []);
 
-  // Latest transcript processor - only processes the most recent transcript
-  const transcriptProcessor = useLatestTranscriptProcessor(
-    async ({ transcript, currentChunk, recentContext }) => {
-      if (sessionRef.current) {
-        sessionRef.current.transport.sendEvent({
-          type: "conversation.item.create",
-          item: {
-            type: "message",
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: `Current: ${currentChunk}${
-                  recentContext ? `\nContext: ${recentContext}` : ""
-                }`,
-              },
-            ],
-          },
-        });
+  // No auto-triggering processor - agent decides when to respond
+  // Just accumulate transcripts and let agent make intelligent decisions
 
-        // Ask the agent to produce a response
-        sessionRef.current.transport.sendEvent({
-          type: "response.create",
-        });
-      }
-    },
-    {
-      debounceMs: 1000, // Base 1s; adaptive backoff inside hook
-      cooldownMs: 0, // Rely on single-flight gating instead of fixed cooldown
-    }
-  );
-
-  const handleTransportEvent = useCallback(
-    (event: any) => {
-      // Handle transcription events
-      switch (event.type) {
-        case "conversation.item.input_audio_transcription.completed": {
-          // Add transcript to accumulator
-          if (transcriptAccumulatorRef.current && event.transcript) {
-            transcriptAccumulatorRef.current.addChunk(
-              event.transcript,
-              Date.now()
-            );
-          }
-
-          if (onTranscriptionRef.current && event.transcript) {
-            onTranscriptionRef.current({
-              type: "transcription",
-              text: event.transcript,
-              timestamp: Date.now(),
-            });
-          }
-
-          // Queue the transcript for processing (only latest will be processed)
-          if (
-            sessionRef.current &&
-            event.transcript &&
-            transcriptAccumulatorRef.current
-          ) {
-            const currentChunk =
-              transcriptAccumulatorRef.current.getCurrentChunk();
-            const recentContext =
-              transcriptAccumulatorRef.current.getRecentContext();
-
-            // Enqueue the latest transcript (discards previous ones)
-            transcriptProcessor.enqueue({
-              transcript: event.transcript,
-              currentChunk,
-              recentContext,
-            });
-          }
-          break;
+  const handleTransportEvent = useCallback((event: any) => {
+    // Handle transcription events
+    switch (event.type) {
+      case "conversation.item.input_audio_transcription.completed": {
+        // Add transcript to accumulator
+        if (transcriptAccumulatorRef.current && event.transcript) {
+          transcriptAccumulatorRef.current.addChunk(
+            event.transcript,
+            Date.now()
+          );
         }
+
+        if (onTranscriptionRef.current && event.transcript) {
+          onTranscriptionRef.current({
+            type: "transcription",
+            text: event.transcript,
+            timestamp: Date.now(),
+          });
+        }
+
+        // DO NOT send transcript as separate message - it's already handled by transcription
+        // The server automatically includes transcribed audio in the conversation
+
+        // Optionally trigger response when agent should respond
+        // For now, let the agent decide via turn detection or we can add logic later
+        break;
       }
-    },
-    [transcriptProcessor]
-  );
+    }
+  }, []);
 
   const connect = useCallback(
     async ({ getEphemeralKey, onTranscription }: ConnectOptions) => {
@@ -161,16 +116,13 @@ export function useRealtimeSession() {
   );
 
   const disconnect = useCallback(() => {
-    // Clear any pending transcript processing
-    transcriptProcessor.clear();
-
     sessionRef.current?.close();
     sessionRef.current = null;
     onTranscriptionRef.current = null;
     transcriptAccumulatorRef.current?.clear();
     transcriptAccumulatorRef.current = null;
     updateStatus("DISCONNECTED");
-  }, [updateStatus, transcriptProcessor]);
+  }, [updateStatus]);
 
   const sendEvent = useCallback((event: any) => {
     sessionRef.current?.transport.sendEvent(event);
@@ -197,8 +149,7 @@ export function useRealtimeSession() {
     sendEvent,
     pushToTalkStart,
     pushToTalkStop,
-    // Transcript processor state for debugging
-    isProcessingTranscript: transcriptProcessor.isProcessing,
-    pendingTranscriptCount: transcriptProcessor.pendingCount,
+    // Transcript accumulator for debugging
+    transcriptDebugInfo: transcriptAccumulatorRef.current?.getDebugInfo(),
   } as const;
 }

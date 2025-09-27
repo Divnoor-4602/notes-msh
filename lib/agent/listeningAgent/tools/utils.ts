@@ -67,13 +67,30 @@ function detectSubgraphs(
     const width = rect.width;
     const height = rect.height;
 
-    // Subgraph criteria: much larger than regular nodes
-    // Regular nodes are typically ~100-130px wide, ~50px tall
-    const isVeryLarge = width > 200 || height > 150;
-    const isContainerShaped = width > 150 && height > 100;
+    // Much more restrictive subgraph criteria to avoid false positives
+    // Only consider rectangles that are significantly larger than typical nodes
+    // and are likely meant to be containers, not content nodes
+    const isVeryLarge = width > 400 && height > 300; // Much larger threshold
+    const isWideContainer = width > 500 && height > 200; // Wide containers
+    const isTallContainer = width > 300 && height > 400; // Tall containers
 
-    // Additional check: should be significantly larger than average node
-    const isSubgraphSize = isVeryLarge || isContainerShaped;
+    // Must be substantially larger to be considered a subgraph
+    const isSubgraphSize = isVeryLarge || isWideContainer || isTallContainer;
+
+    // Additional check: avoid rectangles with short, content-like text
+    const boundText = textElements.find((text) => text.containerId === rect.id);
+    const hasShortText = boundText && boundText.text.length < 20;
+    const hasContentLikeText =
+      boundText &&
+      (boundText.text.toLowerCase().includes("what") ||
+        boundText.text.toLowerCase().includes("new") ||
+        boundText.text.toLowerCase().includes("change") ||
+        boundText.text.length < 15);
+
+    // Don't classify as subgraph if it has short or content-like text
+    if (hasShortText || hasContentLikeText) {
+      return false;
+    }
 
     return isSubgraphSize;
   });
@@ -136,12 +153,15 @@ export function extractCanvasContext(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   elements: any[]
 ): CanvasContext {
+  // First, filter out deleted elements
+  const activeElements = elements.filter((el) => !el.isDeleted);
+
   // Filter elements by type
-  const rectangles = elements.filter((el) => el.type === "rectangle");
-  const diamonds = elements.filter((el) => el.type === "diamond");
-  const ellipses = elements.filter((el) => el.type === "ellipse");
-  const arrows = elements.filter((el) => el.type === "arrow");
-  const textElements = elements.filter((el) => el.type === "text");
+  const rectangles = activeElements.filter((el) => el.type === "rectangle");
+  const diamonds = activeElements.filter((el) => el.type === "diamond");
+  const ellipses = activeElements.filter((el) => el.type === "ellipse");
+  const arrows = activeElements.filter((el) => el.type === "arrow");
+  const textElements = activeElements.filter((el) => el.type === "text");
 
   // Detect subgraphs first (before filtering regular nodes)
   const subgraphs = detectSubgraphs(rectangles, textElements);
@@ -397,7 +417,7 @@ export async function fetchResponsesMessage(
 
 /**
  * Generates an alternative ID when there's a collision with existing IDs.
- * Uses the same strategy as mappingIds.ts: append _2, _3, etc.
+ * Uses a simple strategy: append _2, _3, etc. for duplicates.
  */
 export function generateAlternativeId(
   originalId: string,

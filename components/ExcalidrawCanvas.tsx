@@ -29,8 +29,8 @@ const Excalidraw = dynamic(
 export default function ExcalidrawCanvas() {
   const [isMounted, setIsMounted] = useState(false);
   const setExcalidrawAPI = useCanvasStore((state) => state.setExcalidrawAPI);
-  const syncFromExcalidrawWithRemapping = useCanvasStore(
-    (state) => state.syncFromExcalidrawWithRemapping
+  const syncFromExcalidrawWithMermaidGeneration = useCanvasStore(
+    (state) => state.syncFromExcalidrawWithMermaidGeneration
   );
 
   useEffect(() => {
@@ -48,8 +48,10 @@ export default function ExcalidrawCanvas() {
   ) => {
     void appState; // Suppress unused variable warning
     void files; // Suppress unused variable warning
-    // Use remapping to give manual elements semantic IDs
-    syncFromExcalidrawWithRemapping([...elements]);
+
+    // Sync canvas state and detect meaningful changes
+    // This will handle Mermaid generation internally if there are meaningful changes
+    syncFromExcalidrawWithMermaidGeneration([...elements]);
   };
 
   // Don't render until mounted on client side

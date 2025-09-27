@@ -42,8 +42,14 @@ export const StrokeWidthSchema = z
   .max(20)
   .describe("Stroke width in pixels (1-20)");
 
-// get response from diagram agent tool schema
+// get response from diagram agent tool schema - updated for conversational flow
 export const GetResponseFromDiagramAgentParameterSchema = z.object({
-  currentChunkText: z.string().nullable(),
-  recentContext: z.string().nullable(),
+  fullTranscript: z
+    .string()
+    .describe("Complete conversation transcript up to this point"),
+  currentMermaidCode: z
+    .string()
+    .nullable()
+    .describe("Current mermaid code as source of truth"),
+  recentContext: z.string().nullable().describe("Recent relevant context"),
 });
