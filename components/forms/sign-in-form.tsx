@@ -16,7 +16,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { authClient } from "@/lib/auth/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -52,25 +51,18 @@ export function SignInForm({
     setError(null);
 
     try {
-      const { data, error } = await authClient.signIn.email({
-        email: values.email,
-        password: values.password,
-        rememberMe: true,
-      });
+      // TODO: Implement your authentication logic here
+      console.log("Sign in attempt:", values);
 
-      if (error) {
-        setError(error.message || "Invalid email or password");
-        return;
-      }
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (data) {
-        // Redirect to home page or dashboard after successful sign in
-        router.push("/");
-      }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
+      // TODO: Handle successful authentication
+      router.push("/");
+    } catch (err) {
+      setIsLoading(false);
+      setError("An unexpected error occurred. Please try again.");
     }
   }
   return (

@@ -4,7 +4,7 @@ import React from "react";
 import ExcalidrawCanvas from "@/components/ExcalidrawCanvas";
 import AgentLayout from "@/components/agent-components/agent-layout";
 
-const HomeClient = () => {
+const HomeLayout = () => {
   return (
     <>
       <AgentLayout />
@@ -13,4 +13,4 @@ const HomeClient = () => {
   );
 };
 
-export default HomeClient;
+export default HomeLayout;

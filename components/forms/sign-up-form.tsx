@@ -16,7 +16,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { authClient } from "@/lib/auth/client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -65,25 +64,18 @@ export function SignUpForm({
     setError(null);
 
     try {
-      const { data, error } = await authClient.signUp.email({
-        name: values.name,
-        email: values.email,
-        password: values.password,
-      });
+      // TODO: Implement your authentication logic here
+      console.log("Sign up attempt:", values);
 
-      if (error) {
-        setError(error.message || "An error occurred during sign up");
-        return;
-      }
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (data) {
-        // Redirect to home page or dashboard after successful sign up
-        router.push("/");
-      }
-    } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
       setIsLoading(false);
+      // TODO: Handle successful registration
+      router.push("/");
+    } catch (err) {
+      setIsLoading(false);
+      setError("An unexpected error occurred. Please try again.");
     }
   }
   return (

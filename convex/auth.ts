@@ -9,9 +9,7 @@ const siteUrl = process.env.SITE_URL!;
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
-export const authComponent = createClient<DataModel>(components.betterAuth, {
-  verbose: true,
-});
+export const authComponent = createClient<DataModel>(components.betterAuth);
 
 export const createAuth = (
   ctx: GenericCtx<DataModel>,
