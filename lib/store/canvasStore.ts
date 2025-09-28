@@ -90,8 +90,6 @@ interface CanvasState {
   // Utility actions
   clearCanvas: () => void;
   getElementById: (id: string) => ExcalidrawElement | undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getCanvasContext: () => any;
   getCurrentMermaidCode: () => string | null;
 }
 
@@ -229,10 +227,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         return;
       }
 
-      // Get current canvas context to determine if this is incremental
-      const currentContext = get().getCanvasContext();
+      // Check if there are existing elements by looking at current mermaid code
+      const currentMermaidCode = get().currentMermaidCode;
       hasExistingElements =
-        currentContext.nodes.length > 0 || currentContext.edges.length > 0;
+        currentMermaidCode !== null && currentMermaidCode.length > 0;
 
       if (hasExistingElements) {
         // INCREMENTAL MODE: Replace entire canvas with new diagram
@@ -472,21 +470,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   getElementById: (id: string) => {
     const { elements } = get();
     return elements.find((el) => el.id === id);
-  },
-
-  getCanvasContext: () => {
-    // Legacy method - new architecture uses mermaid code as source of truth
-    // Return empty context to maintain compatibility
-    return {
-      nodes: [],
-      edges: [],
-      subgraphs: [],
-      textElements: [],
-      usedNodeIds: [],
-      usedEdgeIds: [],
-      existingLabels: [],
-      specialLabels: [],
-    };
   },
 
   getCurrentMermaidCode: () => {

@@ -94,21 +94,17 @@ function testCanvasStoreIntegration() {
     console.log("Has remapped text:", hasRemappedText);
   }
 
-  // Test 3: Test getCanvasContext
-  console.log("Test 3: Testing getCanvasContext");
-  const canvasContext = useCanvasStore.getState().getCanvasContext();
-  console.log("Canvas context:");
-  console.log("  Nodes:", canvasContext.nodes.length);
-  console.log("  Edges:", canvasContext.edges.length);
-  console.log("  Used node IDs:", canvasContext.usedNodeIds);
-  console.log("  Used edge IDs:", canvasContext.usedEdgeIds);
+  // Test 3: Test getCurrentMermaidCode
+  console.log("Test 3: Testing getCurrentMermaidCode");
+  const currentMermaidCode = useCanvasStore.getState().getCurrentMermaidCode();
+  console.log("Current Mermaid code:", currentMermaidCode ? "Present" : "None");
 
-  const test3Passed = canvasContext.nodes.length > 0;
+  const test3Passed = currentMermaidCode === null; // Should be null initially
 
   if (test3Passed) {
-    console.log("✅ Test 3 PASSED: Canvas context extraction works\n");
+    console.log("✅ Test 3 PASSED: getCurrentMermaidCode works\n");
   } else {
-    console.log("❌ Test 3 FAILED: Canvas context extraction failed\n");
+    console.log("❌ Test 3 FAILED: getCurrentMermaidCode failed\n");
   }
 
   // Summary
@@ -119,7 +115,7 @@ function testCanvasStoreIntegration() {
     console.log("\n📋 Summary:");
     console.log("✅ Canvas store initializes correctly");
     console.log("✅ Manual element remapping works");
-    console.log("✅ Canvas context extraction works");
+    console.log("✅ getCurrentMermaidCode works");
     console.log("\n🚀 The manual mapping integration is working correctly!");
   } else {
     console.log("⚠️  Some integration tests failed.");

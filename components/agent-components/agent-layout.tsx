@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import VoiceAgent from "./VoiceAgent";
-import RefinementAgent from "./RefinementAgent";
+import VoiceAgent from "./voice-agent";
+import RefinementAgent from "./refinement-agent";
 
 export default function AgentLayout() {
   return (

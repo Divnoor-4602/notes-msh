@@ -1,0 +1,189 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { authClient } from "@/lib/auth/client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+const formSchema = z
+  .object({
+    name: z.string().min(2, {
+      message: "Name must be at least 2 characters.",
+    }),
+    email: z.string().email({
+      message: "Please enter a valid email address.",
+    }),
+    password: z.string().min(8, {
+      message: "Password must be at least 8 characters.",
+    }),
+    confirmPassword: z.string().min(8, {
+      message: "Please confirm your password.",
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+type FormData = z.infer<typeof formSchema>;
+
+export function SignUpForm({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  async function onSubmit(values: FormData) {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { data, error } = await authClient.signUp.email({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+      });
+
+      if (error) {
+        setError(error.message || "An error occurred during sign up");
+        return;
+      }
+
+      if (data) {
+        // Redirect to home page or dashboard after successful sign up
+        router.push("/");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  return (
+    <div className={cn("flex flex-col gap-6", className)} {...props}>
+      <Card className="overflow-hidden p-0">
+        <CardContent className="grid p-0 md:grid-cols-2">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col items-center text-center">
+                  <h1 className="text-2xl font-bold">Create an account</h1>
+                  <p className="text-muted-foreground text-balance">
+                    Sign up for your Notes0 account
+                  </p>
+                </div>
+                {error && (
+                  <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
+                    {error}
+                  </div>
+                )}
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-3">
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-3">
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="m@example.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-3">
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem className="grid gap-3">
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Creating Account..." : "Create Account"}
+                </Button>
+                <div className="text-center text-sm">
+                  Already have an account?{" "}
+                  <Link
+                    href="/sign-in"
+                    className="underline underline-offset-4"
+                  >
+                    Sign in
+                  </Link>
+                </div>
+              </div>
+            </form>
+          </Form>
+          <div className="bg-muted relative hidden md:block">
+            <img
+              src="/placeholder.svg"
+              alt="Image"
+              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

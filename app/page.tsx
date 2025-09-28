@@ -1,16 +1,19 @@
-"use client";
-
 import React from "react";
-import ExcalidrawCanvas from "@/components/ExcalidrawCanvas";
-import AgentLayout from "@/components/agent-components/agent-layout";
+import { auth } from "@/lib/auth/server";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import HomeClient from "./home-client";
 
-const Home = () => {
-  return (
-    <>
-      <AgentLayout />
-      <ExcalidrawCanvas />
-    </>
-  );
-};
+export default async function Home() {
+  // Check if user is authenticated
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-export default Home;
+  // If user is not signed in, redirect to sign-in page
+  if (!session) {
+    redirect("/sign-in");
+  }
+
+  return <HomeClient />;
+}
