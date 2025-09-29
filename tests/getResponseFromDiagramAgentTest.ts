@@ -1,9 +1,6 @@
 /* eslint-disable */
 import { DIAGRAM_AGENT_PROMPT } from "../lib/agent/listeningAgent/prompts";
-import {
-  diagrammingAgentTools,
-  handleToolCalls,
-} from "../lib/agent/listeningAgent/tools/utils";
+import { diagrammingAgentTools, handleToolCalls } from "../lib/agent/listeningAgent/tools/utils";
 import { Window } from "happy-dom";
 
 // Modified version of fetchResponsesMessage that uses full URL for Node.js testing
@@ -27,11 +24,7 @@ async function fetchResponsesMessageWithFullURL(body: any) {
 }
 
 // Modified version of handleToolCalls that uses full URL for Node.js testing
-async function handleToolCallsWithFullURL(
-  body: any,
-  response: any,
-  addBreadcrumb?: (title: string, data?: any) => void
-) {
+async function handleToolCallsWithFullURL(body: any, response: any, addBreadcrumb?: (title: string, data?: any) => void) {
   let currentResponse = response;
 
   while (true) {
@@ -42,15 +35,11 @@ async function handleToolCallsWithFullURL(
     const outputItems: any[] = currentResponse.output ?? [];
 
     // Gather all function calls in the output.
-    const functionCalls = outputItems.filter(
-      (item) => item.type === "function_call"
-    );
+    const functionCalls = outputItems.filter((item) => item.type === "function_call");
 
     if (functionCalls.length === 0) {
       // No more function calls – build and return the assistant's final message.
-      const assistantMessages = outputItems.filter(
-        (item) => item.type === "message"
-      );
+      const assistantMessages = outputItems.filter((item) => item.type === "message");
 
       const finalText = assistantMessages
         .map((msg: any) => {
@@ -79,10 +68,7 @@ async function handleToolCallsWithFullURL(
         addBreadcrumb(`[Diagram agent] function call: ${fName}`, args);
       }
       if (addBreadcrumb) {
-        addBreadcrumb(
-          `[Diagram agent] function call result: ${fName}`,
-          toolRes
-        );
+        addBreadcrumb(`[Diagram agent] function call result: ${fName}`, toolRes);
       }
 
       // Add function call and result to the request body to send back to realtime
@@ -123,9 +109,7 @@ async function getToolResponse(fName: string, args?: any) {
 // Helper function to handle validate_mermaid tool calls
 async function handleValidateMermaid(args: any) {
   if (args?.mermaid_code) {
-    const { validateMermaid } = await import(
-      "../lib/agent/listeningAgent/tools/diagramAgentTools"
-    );
+    const { validateMermaid } = await import("../lib/agent/listeningAgent/tools/diagramAgentTools");
     return await validateMermaid(args.mermaid_code);
   }
   return { success: false, error: "Missing mermaid_code parameter" };
@@ -141,9 +125,7 @@ function handleValidateIds(args: any) {
   }
 
   try {
-    const {
-      validateIds,
-    } = require("../lib/agent/listeningAgent/tools/diagramAgentTools");
+    const { validateIds } = require("../lib/agent/listeningAgent/tools/diagramAgentTools");
     const input = {
       mermaid: args.mermaid_code || args.diagram_elements,
       usedNodeIds: args.usedNodeIds || [],
@@ -158,9 +140,7 @@ function handleValidateIds(args: any) {
   } catch (error) {
     return {
       success: false,
-      error: `Validation failed: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+      error: `Validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
     };
   }
 }
@@ -180,9 +160,7 @@ function handleRuleLint(args: any) {
     };
   }
 
-  const {
-    ruleLint,
-  } = require("../lib/agent/listeningAgent/tools/diagramAgentTools");
+  const { ruleLint } = require("../lib/agent/listeningAgent/tools/diagramAgentTools");
   const input = {
     mermaid: args.diagram_content,
     disallowedFeatures: args.disallowed_features,
@@ -245,10 +223,8 @@ const mockCanvasContext = {
 };
 
 // Test parameters matching exactly what's used in getResponseFromDiagramAgent.ts
-const currentChunkText =
-  "Create a simple flowchart showing the user login process";
-const recentContext =
-  "User wants to add a login flow diagram to the existing canvas";
+const currentChunkText = "Create a simple flowchart showing the user login process";
+const recentContext = "User wants to add a login flow diagram to the existing canvas";
 
 // Create the exact body structure from getResponseFromDiagramAgent.ts
 const body: any = {
@@ -302,9 +278,7 @@ async function testGetResponseFromDiagramAgent() {
 
     // Step 2: Process tool calls iteratively (same as getResponseFromDiagramAgent.ts)
     console.log("\n=== STEP 2: PROCESSING TOOL CALLS ===");
-    console.log(
-      "Using handleToolCalls to process all tool calls iteratively..."
-    );
+    console.log("Using handleToolCalls to process all tool calls iteratively...");
 
     const finalText = await handleToolCallsWithFullURL(body, response);
 
@@ -328,9 +302,7 @@ async function testGetResponseFromDiagramAgent() {
     if (typeof finalText === "string" && finalText) {
       // Method 1: Look for Mermaid code blocks
       console.log("\n--- Method 1: Looking for Mermaid code blocks ---");
-      const mermaidCodeBlockMatch = finalText.match(
-        /```mermaid\n([\s\S]*?)\n```/
-      );
+      const mermaidCodeBlockMatch = finalText.match(/```mermaid\n([\s\S]*?)\n```/);
       if (mermaidCodeBlockMatch) {
         const mermaidCode = mermaidCodeBlockMatch[1];
         console.log("✅ Found Mermaid code in code block!");
@@ -358,9 +330,7 @@ async function testGetResponseFromDiagramAgent() {
 
       // Method 2: Look for Mermaid code without code blocks
       console.log("\n--- Method 2: Looking for raw Mermaid code ---");
-      const mermaidDirectMatch = finalText.match(
-        /^(flowchart|graph)\s+(TD|TB|LR|RL|BT)/m
-      );
+      const mermaidDirectMatch = finalText.match(/^(flowchart|graph)\s+(TD|TB|LR|RL|BT)/m);
       if (mermaidDirectMatch) {
         console.log("✅ Found direct Mermaid code!");
         console.log("Raw Mermaid code:");
@@ -387,10 +357,7 @@ async function testGetResponseFromDiagramAgent() {
       console.log("\n--- Method 3: Checking if entire text is Mermaid ---");
       const lines = finalText.split("\n");
       const firstLine = lines[0]?.trim();
-      if (
-        firstLine &&
-        (firstLine.startsWith("flowchart") || firstLine.startsWith("graph"))
-      ) {
+      if (firstLine && (firstLine.startsWith("flowchart") || firstLine.startsWith("graph"))) {
         console.log("✅ Entire text appears to be Mermaid code!");
         console.log("Mermaid code:");
         console.log("```mermaid");
@@ -416,12 +383,7 @@ async function testGetResponseFromDiagramAgent() {
 
       // Method 4: Search for any Mermaid-like patterns
       console.log("\n--- Method 4: Searching for Mermaid patterns ---");
-      const mermaidPatterns = [
-        /flowchart\s+(TD|TB|LR|RL|BT)/i,
-        /graph\s+(TD|TB|LR|RL|BT)/i,
-        /-->|==>|---/,
-        /\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/,
-      ];
+      const mermaidPatterns = [/flowchart\s+(TD|TB|LR|RL|BT)/i, /graph\s+(TD|TB|LR|RL|BT)/i, /-->|==>|---/, /\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/];
 
       let foundPatterns = 0;
       mermaidPatterns.forEach((pattern, index) => {
@@ -432,9 +394,7 @@ async function testGetResponseFromDiagramAgent() {
       });
 
       if (foundPatterns >= 2) {
-        console.log(
-          `✅ Found ${foundPatterns} Mermaid patterns - likely Mermaid code`
-        );
+        console.log(`✅ Found ${foundPatterns} Mermaid patterns - likely Mermaid code`);
         console.log("Attempting to extract...");
 
         // Try to extract the Mermaid part
@@ -481,9 +441,7 @@ async function testGetResponseFromDiagramAgent() {
           };
         }
       } else {
-        console.log(
-          `❌ Only found ${foundPatterns} Mermaid patterns - likely not Mermaid code`
-        );
+        console.log(`❌ Only found ${foundPatterns} Mermaid patterns - likely not Mermaid code`);
       }
 
       console.log("\n❌ No Mermaid code could be extracted from final text");
@@ -522,12 +480,8 @@ async function testGetResponseFromDiagramAgent() {
 
 // Run the test
 console.log("Starting getResponseFromDiagramAgent test...");
-console.log(
-  "Make sure your Next.js development server is running on localhost:3000"
-);
-console.log(
-  "Make sure you have OPENAI_API_KEY set in your environment variables"
-);
+console.log("Make sure your Next.js development server is running on localhost:3000");
+console.log("Make sure you have OPENAI_API_KEY set in your environment variables");
 console.log("\n" + "=".repeat(50) + "\n");
 
 testGetResponseFromDiagramAgent()

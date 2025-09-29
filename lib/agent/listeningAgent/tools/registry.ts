@@ -3,9 +3,7 @@ import { getResponseFromDiagramAgent } from "./getResponseFromDiagramAgent";
 
 const ALL_TOOLS: RegisteredTool[] = [getResponseFromDiagramAgent];
 
-const byName = new Map<string, RegisteredTool>(
-  ALL_TOOLS.map((t) => [t.docs.name, t])
-);
+const byName = new Map<string, RegisteredTool>(ALL_TOOLS.map((t) => [t.docs.name, t]));
 
 export function getAllTools(): RegisteredTool[] {
   return ALL_TOOLS;
@@ -20,10 +18,7 @@ export function getToolsExcept(names: ToolName[]): RegisteredTool[] {
   return ALL_TOOLS.filter((t) => !exclude.has(t.docs.name));
 }
 
-export function buildSystemPrompt(
-  base: string,
-  tools: RegisteredTool[]
-): string {
+export function buildSystemPrompt(base: string, tools: RegisteredTool[]): string {
   const toolLines = tools.map((t) => {
     const usage = t.docs.usage ? `\n${t.docs.usage}` : "";
     return `- ${t.docs.name}: ${t.docs.summary}${usage}`;

@@ -413,14 +413,20 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       currentState.isProcessingDiagram ||
       currentState.isGeneratingMermaid
     ) {
-      // skip generation in empty or busy states
+      console.log("⏸️ Skipping Mermaid generation:", {
+        isEmpty: elements.length === 0,
+        isProcessingDiagram: currentState.isProcessingDiagram,
+        isGeneratingMermaid: currentState.isGeneratingMermaid,
+      });
       return;
     }
 
     // Clear existing timeout to implement debouncing
     if (currentState.mermaidGenerationTimeout) {
       clearTimeout(currentState.mermaidGenerationTimeout);
-      // prior generation cancelled due to new changes
+      console.log(
+        "⏰ Previous Mermaid generation cancelled - new changes detected"
+      );
     }
 
     // Trigger Mermaid generation after a delay (debounced)
@@ -430,7 +436,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         !latestState.isProcessingDiagram &&
         !latestState.isGeneratingMermaid
       ) {
-        // trigger generation after debounce
+        console.log("🔄 Triggering Mermaid generation for meaningful changes");
         latestState.generateMermaidFromCanvas();
       }
       // Clear the timeout reference
@@ -447,7 +453,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
     // Check if voice agent is processing or already generating Mermaid
     if (state.isProcessingDiagram || state.isGeneratingMermaid) {
-      // generation skipped while processing or already generating
+      console.log(
+        "Skipping Mermaid generation - diagram processing or Mermaid generation in progress"
+      );
       return;
     }
 
