@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth/auth-client";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -51,14 +52,22 @@ export function SignInForm({
     setError(null);
 
     try {
-      // TODO: Implement your authentication logic here
-      console.log("Sign in attempt:", values);
+      const { data, error } = await authClient.signIn.email({
+        email: values.email,
+        password: values.password,
+        rememberMe: true, // Keep user signed in
+        callbackURL: "/", // Redirect after successful signin
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (error) {
+        setError(
+          error.message || "Invalid email or password. Please try again."
+        );
+        setIsLoading(false);
+        return;
+      }
 
-      setIsLoading(false);
-      // TODO: Handle successful authentication
+      // Success - user is signed in
       router.push("/");
     } catch (err) {
       setIsLoading(false);

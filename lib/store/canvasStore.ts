@@ -69,6 +69,7 @@ interface CanvasState {
   lastSyncedElements: ExcalidrawElement[]; // Track last synced state for meaningful change detection
   currentMermaidCode: string | null; // Store the latest Mermaid code from voice agent
   mermaidGenerationTimeout: NodeJS.Timeout | null; // Track debounce timeout
+  isLoadedFromDatabase: boolean; // Track if canvas was loaded from database to prevent immediate sync
 
   // Actions for API management
   setExcalidrawAPI: (api: ExcalidrawAPI) => void;
@@ -87,6 +88,13 @@ interface CanvasState {
   generateMermaidFromCanvas: () => Promise<void>;
   syncToExcalidraw: () => void;
 
+  // Database loading methods (no Mermaid generation)
+  loadFromDatabase: (
+    mermaidCode: string,
+    elements: ExcalidrawElement[]
+  ) => void;
+  loadElementsFromDatabase: (elements: ExcalidrawElement[]) => void;
+
   // Utility actions
   clearCanvas: () => void;
   getElementById: (id: string) => ExcalidrawElement | undefined;
@@ -102,9 +110,46 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   lastSyncedElements: [],
   currentMermaidCode: null,
   mermaidGenerationTimeout: null,
+  isLoadedFromDatabase: false,
 
   setExcalidrawAPI: (api: ExcalidrawAPI) => {
     set({ excalidrawAPI: api });
+  },
+
+  // Database loading methods (no Mermaid generation)
+  loadFromDatabase: (mermaidCode: string, elements: ExcalidrawElement[]) => {
+    set((state) => {
+      // Update Excalidraw canvas if API is available
+      if (state.excalidrawAPI) {
+        state.excalidrawAPI.updateScene({
+          elements,
+        });
+      }
+
+      return {
+        elements,
+        currentMermaidCode: mermaidCode,
+        lastSyncedElements: [...elements], // Track as synced to prevent false change detection
+        isLoadedFromDatabase: true, // Mark as loaded from database
+      };
+    });
+  },
+
+  loadElementsFromDatabase: (elements: ExcalidrawElement[]) => {
+    set((state) => {
+      // Update Excalidraw canvas if API is available
+      if (state.excalidrawAPI) {
+        state.excalidrawAPI.updateScene({
+          elements,
+        });
+      }
+
+      return {
+        elements,
+        lastSyncedElements: [...elements], // Track as synced to prevent false change detection
+        isLoadedFromDatabase: true, // Mark as loaded from database
+      };
+    });
   },
 
   addElementSkeleton: async (skeleton: ExcalidrawElementSkeleton) => {
@@ -329,6 +374,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   syncFromExcalidrawWithMermaidGeneration: (elements: ExcalidrawElement[]) => {
     const currentState = get();
 
+    // If canvas was just loaded from database, mark it as no longer loaded and skip initial sync
+    if (currentState.isLoadedFromDatabase) {
+      set({ isLoadedFromDatabase: false });
+      return;
+    }
+
     // Check if this is a meaningful change (not just canvas movement)
     const hasElementCountChanged =
       elements.length !== currentState.lastSyncedElements.length;
@@ -348,11 +399,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return;
     }
 
-    console.log("🎨 Meaningful canvas change detected:", {
-      elementCount: elements.length,
-      elementTypes: elements.map((el) => el.type),
-      previousCount: currentState.lastSyncedElements.length,
-    });
+    // meaningful change detected; state will be updated and generation may run
 
     // Update the canvas state
     set({
@@ -366,20 +413,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       currentState.isProcessingDiagram ||
       currentState.isGeneratingMermaid
     ) {
-      console.log("⏸️ Skipping Mermaid generation:", {
-        isEmpty: elements.length === 0,
-        isProcessingDiagram: currentState.isProcessingDiagram,
-        isGeneratingMermaid: currentState.isGeneratingMermaid,
-      });
+      // skip generation in empty or busy states
       return;
     }
 
     // Clear existing timeout to implement debouncing
     if (currentState.mermaidGenerationTimeout) {
       clearTimeout(currentState.mermaidGenerationTimeout);
-      console.log(
-        "⏰ Previous Mermaid generation cancelled - new changes detected"
-      );
+      // prior generation cancelled due to new changes
     }
 
     // Trigger Mermaid generation after a delay (debounced)
@@ -389,7 +430,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         !latestState.isProcessingDiagram &&
         !latestState.isGeneratingMermaid
       ) {
-        console.log("🔄 Triggering Mermaid generation for meaningful changes");
+        // trigger generation after debounce
         latestState.generateMermaidFromCanvas();
       }
       // Clear the timeout reference
@@ -406,9 +447,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
     // Check if voice agent is processing or already generating Mermaid
     if (state.isProcessingDiagram || state.isGeneratingMermaid) {
-      console.log(
-        "Skipping Mermaid generation - diagram processing or Mermaid generation in progress"
-      );
+      // generation skipped while processing or already generating
       return;
     }
 
@@ -427,18 +466,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
       if (response.success && response.mermaidCode) {
         set({ currentMermaidCode: response.mermaidCode });
-        console.log("✅ Mermaid code updated from manual changes:");
-        console.log("📋 Generated Mermaid Code:");
-        console.log(response.mermaidCode);
-        console.log("📊 Canvas Stats:", (response as any).canvasStats || "N/A");
       } else {
-        console.error("❌ Failed to generate Mermaid code:", response.error);
         if (response.validationErrors) {
-          console.warn("⚠️ Validation errors:", response.validationErrors);
+          console.warn("Validation errors:", response.validationErrors);
         }
       }
     } catch (error) {
-      console.error("❌ Error generating Mermaid code:", error);
+      console.error("Error generating Mermaid code:", error);
     } finally {
       set({ isGeneratingMermaid: false });
     }
@@ -483,7 +517,7 @@ export const getCanvasStore = () => useCanvasStore.getState();
 // Expose generateMermaidFromCanvas globally for testing
 if (typeof window !== "undefined") {
   (window as any).generateMermaidFromCanvas = () => {
-    console.log("🧪 Testing Mermaid generation...");
+    console.log("Testing Mermaid generation...");
     useCanvasStore.getState().generateMermaidFromCanvas();
   };
 }

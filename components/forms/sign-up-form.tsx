@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth/auth-client";
 
 const formSchema = z
   .object({
@@ -64,14 +65,22 @@ export function SignUpForm({
     setError(null);
 
     try {
-      // TODO: Implement your authentication logic here
-      console.log("Sign up attempt:", values);
+      const { data, error } = await authClient.signUp.email({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        callbackURL: "/", // Redirect after successful signup
+      });
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (error) {
+        setError(
+          error.message || "Failed to create account. Please try again."
+        );
+        setIsLoading(false);
+        return;
+      }
 
-      setIsLoading(false);
-      // TODO: Handle successful registration
+      // Success - user is automatically signed in after signup
       router.push("/");
     } catch (err) {
       setIsLoading(false);
