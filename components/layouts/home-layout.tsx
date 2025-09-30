@@ -12,7 +12,7 @@ const HomeLayout = () => {
   const { check } = useCustomer();
   const [showPaywall, setShowPaywall] = useState(false);
 
-  const { data, error } = check({
+  const { data } = check({
     featureId: "voice_agent_access",
   });
 

@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export interface CheckoutDialogProps {
   open: boolean;
@@ -47,11 +49,22 @@ const formatCurrency = ({
 };
 
 export default function CheckoutDialog(params: CheckoutDialogProps) {
-  const { attach } = useCustomer();
+  const { attach, customer } = useCustomer();
   const router = useRouter();
   const [checkoutResult, setCheckoutResult] = useState<
     CheckoutResult | undefined
   >(params?.checkoutResult);
+
+  // Add the email action mutation
+  const sendTrialStartedEmail = useAction(
+    api.emailActions.sendTrialStartedEmailAction
+  );
+  const sendSubscriptionActivatedEmail = useAction(
+    api.emailActions.sendSubscriptionActivatedEmailAction
+  );
+  const updateUserSubscription = useAction(
+    api.auth.updateUserSubscriptionAction
+  );
 
   useEffect(() => {
     if (params.checkoutResult) {
@@ -104,11 +117,52 @@ export default function CheckoutDialog(params: CheckoutDialogProps) {
                   options,
                 });
 
-                // Check if this is a free trial and redirect
+                // Check if this is a free trial and send email
                 if (checkoutResult.product.properties?.has_trial) {
+                  // Send trial started email
+                  try {
+                    await sendTrialStartedEmail({
+                      userEmail: customer?.email || "",
+                      userName: customer?.name || "there",
+                      trialDays: 3, // From your autumn.config.ts
+                    });
+                  } catch (emailError) {
+                    console.error(
+                      "Failed to send trial started email:",
+                      emailError
+                    );
+                    // Don't block the flow if email fails
+                  }
+
                   // Redirect to home page after successful trial start
                   router.push("/");
                   return;
+                }
+
+                // If it's a paid subscription (not trial), handle subscription activation
+                if (isPaid) {
+                  try {
+                    // Update user subscription status
+                    await updateUserSubscription({
+                      userEmail: customer?.email || "",
+                      subscriptionStatus: "active",
+                      subscriptionPlan: checkoutResult.product.name || "Pro",
+                      autumnCustomerId: customer?.id || undefined,
+                    });
+
+                    // Send subscription activated email
+                    await sendSubscriptionActivatedEmail({
+                      userEmail: customer?.email || "",
+                      userName: customer?.name || "there",
+                      planName: checkoutResult.product.name || "Pro",
+                    });
+                  } catch (emailError) {
+                    console.error(
+                      "Failed to send subscription activated email:",
+                      emailError
+                    );
+                    // Don't block the flow if email fails
+                  }
                 }
 
                 setOpen(false);

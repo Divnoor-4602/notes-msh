@@ -6,7 +6,7 @@ import {
 import { convex } from "@convex-dev/better-auth/plugins";
 import { components, internal } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import { internalMutation, query, action } from "./_generated/server";
 import { betterAuth } from "better-auth";
 import { v } from "convex/values";
 
@@ -18,7 +18,7 @@ const authFunctions: AuthFunctions = internal.auth;
 // as well as helper methods for general use.
 export const authComponent = createClient<DataModel>(components.betterAuth, {
   authFunctions,
-  verbose: true,
+  verbose: false,
   triggers: {
     user: {
       onCreate: async (ctx, authUser) => {
@@ -29,6 +29,26 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
           mermaidCode: "",
           lastModified: Date.now(),
         });
+
+        // Create a user record for trial tracking
+        await ctx.db.insert("users", {
+          email: authUser.email,
+          name: authUser.name,
+          subscriptionStatus: "trial",
+          trialEndsAt: Date.now() + 3 * 24 * 60 * 60 * 1000, // 3 days from now
+          autumnCustomerId: authUser._id, // Using auth user ID as customer ID for now
+        });
+
+        // Send welcome email
+        try {
+          await ctx.runMutation(internal.email.sendWelcomeEmail, {
+            userEmail: authUser.email,
+            userName: authUser.name || "there",
+          });
+        } catch (error) {
+          console.error("Failed to send welcome email:", error);
+          // Don't throw - email failure shouldn't break user creation
+        }
       },
       onUpdate: async (ctx, oldUser, newUser) => {
         console.log("User updated", newUser);
@@ -88,6 +108,62 @@ export const isAuthenticated = query({
       // Return false for unauthenticated users instead of throwing
       return false;
     }
+  },
+});
+
+// Mutation to update user subscription status (called when user upgrades)
+export const updateUserSubscription = internalMutation({
+  args: {
+    userEmail: v.string(),
+    subscriptionStatus: v.union(
+      v.literal("trial"),
+      v.literal("active"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    subscriptionPlan: v.optional(v.string()),
+    autumnCustomerId: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (
+    ctx,
+    { userEmail, subscriptionStatus, subscriptionPlan, autumnCustomerId }
+  ) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", userEmail))
+      .first();
+
+    if (user) {
+      await ctx.db.patch(user._id, {
+        subscriptionStatus,
+        subscriptionPlan,
+        autumnCustomerId,
+        subscriptionActivatedAt:
+          subscriptionStatus === "active" ? Date.now() : undefined,
+      });
+    }
+    return null;
+  },
+});
+
+// Public action to update user subscription status (called from frontend)
+export const updateUserSubscriptionAction = action({
+  args: {
+    userEmail: v.string(),
+    subscriptionStatus: v.union(
+      v.literal("trial"),
+      v.literal("active"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    subscriptionPlan: v.optional(v.string()),
+    autumnCustomerId: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.runMutation(internal.auth.updateUserSubscription, args);
+    return null;
   },
 });
 

@@ -45,7 +45,7 @@ export const proPlan = product({
   ],
   free_trial: {
     duration: "day",
-    length: 3, // 2-day free trial
+    length: 3, // 3-day free trial
     unique_fingerprint: false,
     card_required: false,
   },

@@ -1,10 +1,38 @@
 import type { CreateAgentOptions } from "@/lib/validations/tool.schema";
-import { extractCanvasContext } from "@/lib/agent/listeningAgent/tools/utils";
+// import { extractCanvasContext } from "@/lib/agent/listeningAgent/tools/utils"; // unused
 import {
   ruleLint,
   validateMermaid,
   type RuleLintInput,
 } from "@/lib/agent/listeningAgent/tools/diagramAgentTools";
+
+/**
+ * Canonical canvas context types used by the Mermaid agent.
+ */
+export interface CanvasNode {
+  id: number;
+  type: string;
+  label: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+}
+
+export interface CanvasEdge {
+  source: number;
+  target: number;
+  label: string;
+}
+
+export interface CanvasSubgraph {
+  label: string;
+  nodes: number[];
+}
+
+export interface CanvasContext {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  subgraphs: CanvasSubgraph[];
+}
 
 /**
  * Request body structure for mermaid agent
@@ -13,7 +41,7 @@ export interface MermaidAgentRequest {
   elements: unknown[]; // Excalidraw elements (deprecated, now empty to prevent ID leakage)
   currentMermaidCode: string | null; // Current Mermaid code from canvas store
   agentOptions?: CreateAgentOptions;
-  canvasContext?: any; // Processed canvas context without raw IDs
+  canvasContext?: CanvasContext; // Processed canvas context without raw IDs
 }
 
 /**
@@ -29,8 +57,24 @@ export interface MermaidAgentResponse {
 /**
  * Filter out deleted elements and free-flowing text elements that aren't bound to shapes
  */
-export function filterBoundElements(elements: any[]): any[] {
-  return elements.filter((element) => {
+type RawElement = {
+  id: string;
+  type: string;
+  isDeleted?: boolean;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  containerId?: string | null;
+  startBinding?: { elementId?: string | null } | null;
+  endBinding?: { elementId?: string | null } | null;
+  text?: string;
+  points?: { x: number; y: number }[];
+};
+
+export function filterBoundElements(elements: unknown[]): RawElement[] {
+  const typed = elements as RawElement[];
+  return typed.filter((element) => {
     // Filter out deleted elements first
     if (element.isDeleted) {
       return false;
@@ -49,17 +93,20 @@ export function filterBoundElements(elements: any[]): any[] {
 /**
  * Extract canvas context with filtered elements (no free-flowing text)
  */
-export function extractFilteredCanvasContext(elements: any[]) {
-  const filteredElements = filterBoundElements(elements);
+export function extractFilteredCanvasContext(elements: unknown[]) {
+  const filteredElements = filterBoundElements(elements as RawElement[]);
   return extractIdFreeCanvasContext(filteredElements);
 }
 
 /**
  * Local copy of detectSubgraphs to avoid import issues
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function detectSubgraphs(rectangles: any[], textElements: any[]): any[] {
-  const subgraphs: any[] = [];
+type RectElement = RawElement & { width: number; height: number };
+function detectSubgraphs(
+  rectangles: RectElement[],
+  textElements: RawElement[]
+) {
+  const subgraphs: { id: string; label: string; nodes: string[] }[] = [];
 
   // Identify subgraphs: very large rectangles that are likely containers
   const potentialSubgraphs = rectangles.filter((rect) => {
@@ -74,16 +121,15 @@ function detectSubgraphs(rectangles: any[], textElements: any[]): any[] {
     const isSubgraphSize = isVeryLarge || isWideContainer || isTallContainer;
 
     // Additional check: avoid rectangles with short, content-like text
-    const boundText = textElements.find(
-      (text: any) => text.containerId === rect.id
-    );
-    const hasShortText = boundText && boundText.text.length < 20;
+    const boundText = textElements.find((text) => text.containerId === rect.id);
+    const textContent = boundText?.text ?? "";
+    const hasShortText = textContent.length < 20;
+    const lower = textContent.toLowerCase();
     const hasContentLikeText =
-      boundText &&
-      (boundText.text.toLowerCase().includes("what") ||
-        boundText.text.toLowerCase().includes("new") ||
-        boundText.text.toLowerCase().includes("change") ||
-        boundText.text.length < 15);
+      lower.includes("what") ||
+      lower.includes("new") ||
+      lower.includes("change") ||
+      textContent.length < 15;
 
     // Don't classify as subgraph if it has short or content-like text
     if (hasShortText || hasContentLikeText) {
@@ -96,7 +142,7 @@ function detectSubgraphs(rectangles: any[], textElements: any[]): any[] {
   potentialSubgraphs.forEach((subgraph, index) => {
     // Find bound text for subgraph label
     const boundText = textElements.find(
-      (text: any) => text.containerId === subgraph.id
+      (text) => text.containerId === subgraph.id
     );
     const label = boundText?.text || `Subgraph ${index + 1}`;
 
@@ -131,14 +177,23 @@ function detectSubgraphs(rectangles: any[], textElements: any[]): any[] {
  * Extract canvas context WITHOUT any Excalidraw element IDs
  * This ensures the LLM cannot access any internal IDs
  */
-function extractIdFreeCanvasContext(elements: any[]): any {
+function extractIdFreeCanvasContext(elements: RawElement[]): CanvasContext {
   // First, filter out deleted elements
   const activeElements = elements.filter((el) => !el.isDeleted);
 
   // Filter elements by type
-  const rectangles = activeElements.filter((el) => el.type === "rectangle");
-  const diamonds = activeElements.filter((el) => el.type === "diamond");
-  const ellipses = activeElements.filter((el) => el.type === "ellipse");
+  const rectangles = activeElements.filter(
+    (el): el is RectElement =>
+      el.type === "rectangle" &&
+      typeof el.width === "number" &&
+      typeof el.height === "number"
+  );
+  const diamonds = activeElements.filter(
+    (el): el is RawElement => el.type === "diamond"
+  );
+  const ellipses = activeElements.filter(
+    (el): el is RawElement => el.type === "ellipse"
+  );
   const arrows = activeElements.filter((el) => el.type === "arrow");
   const textElements = activeElements.filter((el) => el.type === "text");
 
@@ -155,7 +210,7 @@ function extractIdFreeCanvasContext(elements: any[]): any {
   const allShapes = [...regularRectangles, ...diamonds, ...ellipses];
 
   // Extract nodes WITHOUT IDs - only type and label
-  const nodes = allShapes.map((shape) => {
+  const nodes: CanvasNode[] = allShapes.map((shape, index) => {
     // Find bound text element for label
     const boundText = textElements.find(
       (text) => text.containerId === shape.id
@@ -163,26 +218,29 @@ function extractIdFreeCanvasContext(elements: any[]): any {
     const label = boundText?.text || `${shape.type}_node`;
 
     return {
+      id: index,
       // NO ID FIELD - this is the critical change
       type: shape.type,
       label: label,
       // Keep position for spatial understanding but no ID references
       position: { x: shape.x, y: shape.y },
-      size: { width: shape.width, height: shape.height },
+      size: { width: shape.width ?? 0, height: shape.height ?? 0 },
     };
   });
 
   // Create a temporary ID mapping for edge processing (not exposed to LLM)
-  const shapeIdToIndex = new Map();
+  const shapeIdToIndex = new Map<string, number>();
   allShapes.forEach((shape, index) => {
     shapeIdToIndex.set(shape.id, index);
   });
 
   // Extract edges without exposing IDs
-  const edges = arrows
+  const edges: CanvasEdge[] = arrows
     .map((arrow) => {
-      const sourceIndex = shapeIdToIndex.get(arrow.startBinding?.elementId);
-      const targetIndex = shapeIdToIndex.get(arrow.endBinding?.elementId);
+      const startId = arrow.startBinding?.elementId ?? null;
+      const endId = arrow.endBinding?.elementId ?? null;
+      const sourceIndex = startId ? shapeIdToIndex.get(startId) : undefined;
+      const targetIndex = endId ? shapeIdToIndex.get(endId) : undefined;
 
       // Find bound text for edge label
       const boundText = textElements.find(
@@ -199,8 +257,8 @@ function extractIdFreeCanvasContext(elements: any[]): any {
     .filter((edge) => edge.source >= 0 && edge.target >= 0); // Remove invalid edges
 
   // Process subgraphs without IDs
-  const processedSubgraphs = subgraphs
-    .map((sg: any) => ({
+  const processedSubgraphs: CanvasSubgraph[] = subgraphs
+    .map((sg) => ({
       label: sg.label,
       nodes: sg.nodes
         .map((nodeId: string) => {
@@ -209,7 +267,7 @@ function extractIdFreeCanvasContext(elements: any[]): any {
         })
         .filter((index: number) => index >= 0),
     }))
-    .filter((sg: any) => sg.nodes.length > 0); // Only include non-empty subgraphs
+    .filter((sg) => sg.nodes.length > 0); // Only include non-empty subgraphs
 
   return {
     nodes,
@@ -386,7 +444,7 @@ export async function generateMermaidFromCanvas(
 ): Promise<MermaidAgentResponse> {
   try {
     // Filter elements and extract context
-    const canvasContext = extractFilteredCanvasContext(elements as any[]);
+    const canvasContext = extractFilteredCanvasContext(elements);
 
     // Prepare request - only send processed context, no raw elements with IDs
     const request: MermaidAgentRequest = {

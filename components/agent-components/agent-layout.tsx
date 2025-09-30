@@ -2,7 +2,6 @@
 
 import React from "react";
 import VoiceAgent from "./voice-agent";
-import RefinementAgent from "./refinement-agent";
 
 export default function AgentLayout() {
   return (

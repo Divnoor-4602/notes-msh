@@ -7,7 +7,7 @@ export function AutumnWrapper({ children }: { children: React.ReactNode }) {
   const convex = useConvex();
 
   return (
-    <AutumnProvider convex={convex} convexApi={(api as any).autumn}>
+    <AutumnProvider convex={convex} convexApi={api.autumn}>
       {children}
     </AutumnProvider>
   );

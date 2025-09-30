@@ -4,6 +4,10 @@ import { getMermaidAgentConfig } from "@/lib/agent/mermaidAgent";
 import {
   extractFilteredCanvasContext,
   validateGeneratedMermaid,
+  type CanvasContext,
+  type CanvasEdge,
+  type CanvasNode,
+  type CanvasSubgraph,
 } from "@/lib/agent/mermaidAgent/utils";
 import type { CreateAgentOptions } from "@/lib/validations/tool.schema";
 import { getToken } from "@/lib/auth/auth-server";
@@ -47,8 +51,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Use provided canvas context or fallback to extracting from elements
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let canvasContext: any;
+    let canvasContext: CanvasContext;
     if (providedCanvasContext) {
       canvasContext = providedCanvasContext;
     } else {
@@ -77,9 +80,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Filter out empty subgraphs for cleaner output
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nonEmptySubgraphs = canvasContext.subgraphs.filter(
-      (sg: any) => sg.nodes.length > 0
+      (sg: CanvasSubgraph) => sg.nodes.length > 0
     );
 
     // Prepare input message for the agent
@@ -100,16 +102,15 @@ Canvas Context:
 
 Nodes:
 ${canvasContext.nodes
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .map(
-    (node: any, index: number) => `${index + 1}. ${node.type}: "${node.label}"`
+    (node: CanvasNode, index: number) =>
+      `${index + 1}. ${node.type}: "${node.label}"`
   )
   .join("\n")}
 
 Connections:
 ${canvasContext.edges
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .map((edge: any, edgeIndex: number) => {
+  .map((edge: CanvasEdge, edgeIndex: number) => {
     // Edge source/target are now indices, not IDs
     const sourceIndex = edge.source + 1; // Convert 0-based to 1-based
     const targetIndex = edge.target + 1; // Convert 0-based to 1-based
@@ -133,9 +134,8 @@ ${
   nonEmptySubgraphs.length > 0
     ? `Subgraphs:
 ${nonEmptySubgraphs
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .map(
-    (sg: any, index: number) =>
+    (sg: CanvasSubgraph, index: number) =>
       `${index + 1}. "${sg.label}" (contains ${sg.nodes.length} nodes)`
   )
   .join("\n")}\n`
@@ -164,7 +164,8 @@ flowchart TD
     let mermaidCode = "";
     let retryCount = 0;
     const maxRetries = 2;
-    let validation: any;
+    let lastValidationResult: { isValid: boolean; errors: string[] } | null =
+      null;
 
     while (retryCount <= maxRetries) {
       // Run the agent
@@ -196,25 +197,26 @@ flowchart TD
         .trim();
 
       // Validate the generated Mermaid code
-      const validation = validateGeneratedMermaid(mermaidCode);
+      const validationResult = validateGeneratedMermaid(mermaidCode);
+      lastValidationResult = validationResult;
 
       // Check if we have Excalidraw ID issues
-      const hasExcalidrawIds = validation.errors.some((error) =>
+      const hasExcalidrawIds = validationResult.errors.some((error) =>
         error.includes("Detected Excalidraw element IDs")
       );
 
       if (!hasExcalidrawIds) {
         // Success! No Excalidraw IDs detected
-        if (!validation.isValid) {
+        if (!validationResult.isValid) {
           console.warn(
             "Generated Mermaid code has validation issues:",
-            validation.errors
+            validationResult.errors
           );
           // Return with warnings for other validation issues
           return NextResponse.json({
             success: true,
             mermaidCode,
-            validationWarnings: validation.errors,
+            validationWarnings: validationResult.errors,
           });
         }
         break; // Exit retry loop - we have valid code
@@ -224,7 +226,7 @@ flowchart TD
       retryCount++;
       console.warn(
         `Attempt ${retryCount}: Agent used Excalidraw IDs, retrying...`,
-        validation.errors
+        validationResult.errors
       );
 
       if (retryCount <= maxRetries) {
@@ -267,16 +269,15 @@ Canvas Context:
 
 Nodes:
 ${canvasContext.nodes
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .map(
-    (node: any, index: number) => `${index + 1}. ${node.type}: "${node.label}"`
+    (node: CanvasNode, index: number) =>
+      `${index + 1}. ${node.type}: "${node.label}"`
   )
   .join("\n")}
 
 Connections:
 ${canvasContext.edges
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .map((edge: any, edgeIndex: number) => {
+  .map((edge: CanvasEdge, edgeIndex: number) => {
     // Edge source/target are now indices, not IDs
     const sourceIndex = edge.source + 1; // Convert 0-based to 1-based
     const targetIndex = edge.target + 1; // Convert 0-based to 1-based
@@ -300,9 +301,8 @@ ${
   nonEmptySubgraphs.length > 0
     ? `Subgraphs:
 ${nonEmptySubgraphs
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   .map(
-    (sg: any, index: number) =>
+    (sg: CanvasSubgraph, index: number) =>
       `${index + 1}. "${sg.label}" (contains ${sg.nodes.length} nodes)`
   )
   .join("\n")}\n`
@@ -335,7 +335,7 @@ flowchart TD
       return NextResponse.json({
         success: false,
         error: "Agent repeatedly used Excalidraw element IDs despite retries",
-        validationErrors: validation?.errors || [],
+        validationErrors: lastValidationResult?.errors || [],
       });
     }
 

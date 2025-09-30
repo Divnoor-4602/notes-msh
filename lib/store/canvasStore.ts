@@ -27,21 +27,25 @@ interface ExcalidrawElementSkeleton {
 }
 
 // Dynamic import helper for client-side only
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let convertToExcalidrawElements: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let parseMermaidToExcalidraw: any = null;
+type ConvertFn = (skeletons: unknown[]) => ExcalidrawElement[];
+type ParseMermaidFn = (
+  definition: string,
+  config?: unknown
+) => Promise<{ elements: ExcalidrawElementSkeleton[] }>;
+let convertToExcalidrawElements: ConvertFn | null = null;
+let parseMermaidToExcalidraw: ParseMermaidFn | null = null;
 
 const getConvertToExcalidrawElements = async () => {
   if (typeof window === "undefined") {
     // Server-side rendering, return a no-op function
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (skeletons: any[]) => skeletons;
+    return (skeletons: ExcalidrawElementSkeleton[]) =>
+      skeletons as unknown as ExcalidrawElement[];
   }
 
   if (!convertToExcalidrawElements) {
     const excalidrawModule = await import("@excalidraw/excalidraw");
-    convertToExcalidrawElements = excalidrawModule.convertToExcalidrawElements;
+    convertToExcalidrawElements =
+      excalidrawModule.convertToExcalidrawElements as unknown as ConvertFn;
   }
 
   return convertToExcalidrawElements;
@@ -54,7 +58,8 @@ const getParseMermaidToExcalidraw = async () => {
 
   if (!parseMermaidToExcalidraw) {
     const mermaidModule = await import("@excalidraw/mermaid-to-excalidraw");
-    parseMermaidToExcalidraw = mermaidModule.parseMermaidToExcalidraw;
+    parseMermaidToExcalidraw =
+      mermaidModule.parseMermaidToExcalidraw as unknown as ParseMermaidFn;
   }
 
   return parseMermaidToExcalidraw;
@@ -66,6 +71,7 @@ interface CanvasState {
   elements: ExcalidrawElement[];
   isProcessingDiagram: boolean;
   isGeneratingMermaid: boolean;
+  isRemappingElements: boolean; // For compatibility with tests
   lastSyncedElements: ExcalidrawElement[]; // Track last synced state for meaningful change detection
   currentMermaidCode: string | null; // Store the latest Mermaid code from voice agent
   mermaidGenerationTimeout: NodeJS.Timeout | null; // Track debounce timeout
@@ -85,6 +91,7 @@ interface CanvasState {
   syncFromExcalidrawWithMermaidGeneration: (
     elements: ExcalidrawElement[]
   ) => void;
+  syncFromExcalidrawWithRemapping: (elements: ExcalidrawElement[]) => void;
   generateMermaidFromCanvas: () => Promise<void>;
   syncToExcalidraw: () => void;
 
@@ -107,6 +114,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   elements: [],
   isProcessingDiagram: false,
   isGeneratingMermaid: false,
+  isRemappingElements: false,
   lastSyncedElements: [],
   currentMermaidCode: null,
   mermaidGenerationTimeout: null,
@@ -159,16 +167,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       set((state) => {
         try {
           // Convert skeleton to full Excalidraw elements (shape + bound text)
-          const convertedElements = convert([skeleton], {
-            regenerateIds: false,
-          });
+          const convertedElements = convert([skeleton]);
 
           // Use converted elements directly (no ID remapping needed)
           const remappedElements = convertedElements;
 
           // Ensure unique IDs by checking against existing elements
-          const existingIds = new Set(state.elements.map((el: any) => el.id));
-          const uniqueRemappedElements = remappedElements.map((el: any) => {
+          const existingIds = new Set(state.elements.map((el) => el.id));
+          const uniqueRemappedElements = remappedElements.map((el) => {
             if (existingIds.has(el.id)) {
               // Generate a unique ID by appending a counter
               let counter = 2;
@@ -209,14 +215,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
       set((state) => {
         // Convert skeletons to full Excalidraw elements
-        const convertedElements = convert(skeletons, { regenerateIds: false });
+        const convertedElements = convert(skeletons);
 
         // Use converted elements directly (no ID remapping needed)
         const remappedElements = convertedElements;
 
         // Ensure unique IDs by checking against existing elements
-        const existingIds = new Set(state.elements.map((el: any) => el.id));
-        const uniqueRemappedElements = remappedElements.map((el: any) => {
+        const existingIds = new Set(state.elements.map((el) => el.id));
+        const uniqueRemappedElements = remappedElements.map((el) => {
           if (existingIds.has(el.id)) {
             // Generate a unique ID by appending a counter
             let counter = 2;
@@ -252,9 +258,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     // Check if we're already processing a diagram or generating Mermaid
     const state = get();
     if (state.isProcessingDiagram || state.isGeneratingMermaid) {
-      console.log(
-        "Skipping diagram processing - Mermaid generation or diagram processing in progress"
-      );
       return;
     }
 
@@ -319,7 +322,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       // Store the Mermaid code as the current source of truth
       set({ currentMermaidCode: diagramDefinition });
     } catch (error) {
-      console.error("❌ Error processing Mermaid diagram:", error);
+      console.error("Error processing Mermaid diagram:", error);
 
       // Rollback to previous state if we had existing elements
       if (hasExistingElements) {
@@ -413,20 +416,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       currentState.isProcessingDiagram ||
       currentState.isGeneratingMermaid
     ) {
-      console.log("⏸️ Skipping Mermaid generation:", {
-        isEmpty: elements.length === 0,
-        isProcessingDiagram: currentState.isProcessingDiagram,
-        isGeneratingMermaid: currentState.isGeneratingMermaid,
-      });
       return;
     }
 
     // Clear existing timeout to implement debouncing
     if (currentState.mermaidGenerationTimeout) {
       clearTimeout(currentState.mermaidGenerationTimeout);
-      console.log(
-        "⏰ Previous Mermaid generation cancelled - new changes detected"
-      );
     }
 
     // Trigger Mermaid generation after a delay (debounced)
@@ -436,7 +431,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         !latestState.isProcessingDiagram &&
         !latestState.isGeneratingMermaid
       ) {
-        console.log("🔄 Triggering Mermaid generation for meaningful changes");
         latestState.generateMermaidFromCanvas();
       }
       // Clear the timeout reference
@@ -447,15 +441,29 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set({ mermaidGenerationTimeout: timeoutId });
   },
 
+  // Sync elements while indicating a remapping process; does not trigger Mermaid generation
+  syncFromExcalidrawWithRemapping: (elements: ExcalidrawElement[]) => {
+    set({ isRemappingElements: true });
+    // Directly update state and last synced snapshot
+    set({
+      elements: [...elements],
+      lastSyncedElements: [...elements],
+    });
+    // Update the Excalidraw canvas if available
+    const { excalidrawAPI } = get();
+    if (excalidrawAPI) {
+      excalidrawAPI.updateScene({ elements });
+    }
+    // End remapping flag
+    set({ isRemappingElements: false });
+  },
+
   // Generate Mermaid code from current canvas state
   generateMermaidFromCanvas: async () => {
     const state = get();
 
     // Check if voice agent is processing or already generating Mermaid
     if (state.isProcessingDiagram || state.isGeneratingMermaid) {
-      console.log(
-        "Skipping Mermaid generation - diagram processing or Mermaid generation in progress"
-      );
       return;
     }
 
@@ -524,8 +532,9 @@ export const getCanvasStore = () => useCanvasStore.getState();
 
 // Expose generateMermaidFromCanvas globally for testing
 if (typeof window !== "undefined") {
-  (window as any).generateMermaidFromCanvas = () => {
-    console.log("Testing Mermaid generation...");
+  (
+    window as unknown as { generateMermaidFromCanvas: () => void }
+  ).generateMermaidFromCanvas = () => {
     useCanvasStore.getState().generateMermaidFromCanvas();
   };
 }

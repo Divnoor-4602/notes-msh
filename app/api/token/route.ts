@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getToken } from "@/lib/auth/auth-server";
 import { fetchAction } from "convex/nextjs";
 import { api } from "@/convex/_generated/api";
-import { autumn } from "@/convex/autumn";
 
 // Minimal types for the OpenAI Realtime API
 interface RealtimeSessionConfig {
