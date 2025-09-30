@@ -186,7 +186,7 @@ export default function ExcalidrawCanvas({
         excalidrawAPI={handleExcalidrawAPI}
         onChange={handleChange}
         viewModeEnabled={!canEdit}
-      />
+      ></Excalidraw>
     </div>
   );
 }
