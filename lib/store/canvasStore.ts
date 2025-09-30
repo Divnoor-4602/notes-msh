@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 // Removed extractCanvasContext - using mermaid code as source of truth
 
 // Define types based on what we know is available
@@ -272,6 +273,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       const parseMermaid = await getParseMermaidToExcalidraw();
 
       if (!parseMermaid) {
+        toast.error("Diagram parser is unavailable. Please retry.");
         return;
       }
 
@@ -314,6 +316,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
             return { elements: currentElements };
           });
         }
+        toast.error("Could not create diagram from the provided definition.");
         return;
       }
 
@@ -323,6 +326,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       set({ currentMermaidCode: diagramDefinition });
     } catch (error) {
       console.error("Error processing Mermaid diagram:", error);
+      toast.error(
+        "Failed to process Mermaid diagram. Check your syntax and try again."
+      );
 
       // Rollback to previous state if we had existing elements
       if (hasExistingElements) {
@@ -489,6 +495,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       }
     } catch (error) {
       console.error("Error generating Mermaid code:", error);
+      toast.error("Failed to generate Mermaid code from canvas.");
     } finally {
       set({ isGeneratingMermaid: false });
     }

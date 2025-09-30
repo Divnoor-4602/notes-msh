@@ -20,6 +20,7 @@ import {
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
+import { toast } from "sonner";
 
 const formSchema = z
   .object({
@@ -48,7 +49,6 @@ export function SignUpForm({
   ...props
 }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const form = useForm<FormData>({
@@ -63,7 +63,6 @@ export function SignUpForm({
 
   async function onSubmit(values: FormData) {
     setIsLoading(true);
-    setError(null);
 
     try {
       const { error } = await authClient.signUp.email({
@@ -74,7 +73,7 @@ export function SignUpForm({
       });
 
       if (error) {
-        setError(
+        toast.error(
           error.message || "Failed to create account. Please try again."
         );
         setIsLoading(false);
@@ -85,7 +84,7 @@ export function SignUpForm({
       router.push("/");
     } catch (_err) {
       setIsLoading(false);
-      setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred. Please try again.");
     }
   }
   return (
@@ -101,11 +100,7 @@ export function SignUpForm({
                     Sign up for your Notes0 account
                   </p>
                 </div>
-                {error && (
-                  <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-                    {error}
-                  </div>
-                )}
+
                 <FormField
                   control={form.control}
                   name="name"

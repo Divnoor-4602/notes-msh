@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 
 export interface CheckoutDialogProps {
   open: boolean;
@@ -131,6 +132,9 @@ export default function CheckoutDialog(params: CheckoutDialogProps) {
                       "Failed to send trial started email:",
                       emailError
                     );
+                    toast.error(
+                      "Trial started, but failed to send confirmation email."
+                    );
                     // Don't block the flow if email fails
                   }
 
@@ -161,6 +165,9 @@ export default function CheckoutDialog(params: CheckoutDialogProps) {
                       "Failed to send subscription activated email:",
                       emailError
                     );
+                    toast.error(
+                      "Subscription active, but failed to send confirmation email."
+                    );
                     // Don't block the flow if email fails
                   }
                 }
@@ -168,6 +175,11 @@ export default function CheckoutDialog(params: CheckoutDialogProps) {
                 setOpen(false);
               } catch (error) {
                 console.error("Failed to attach product:", error);
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : "Checkout failed. Please try again.";
+                toast.error(message);
               } finally {
                 setLoading(false);
               }

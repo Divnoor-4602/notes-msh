@@ -20,6 +20,7 @@ import {
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -37,7 +38,6 @@ export function SignInForm({
   ...props
 }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const form = useForm<FormData>({
@@ -50,7 +50,6 @@ export function SignInForm({
 
   async function onSubmit(values: FormData) {
     setIsLoading(true);
-    setError(null);
 
     try {
       const { error } = await authClient.signIn.email({
@@ -61,7 +60,7 @@ export function SignInForm({
       });
 
       if (error) {
-        setError(
+        toast.error(
           error.message || "Invalid email or password. Please try again."
         );
         setIsLoading(false);
@@ -72,7 +71,7 @@ export function SignInForm({
       router.push("/");
     } catch (_err) {
       setIsLoading(false);
-      setError("An unexpected error occurred. Please try again.");
+      toast.error("An unexpected error occurred. Please try again.");
     }
   }
   return (
@@ -88,11 +87,7 @@ export function SignInForm({
                     Sign in to your Notes0 account
                   </p>
                 </div>
-                {error && (
-                  <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-                    {error}
-                  </div>
-                )}
+
                 <FormField
                   control={form.control}
                   name="email"
@@ -115,15 +110,7 @@ export function SignInForm({
                   name="password"
                   render={({ field }) => (
                     <FormItem className="grid gap-3">
-                      <div className="flex items-center">
-                        <FormLabel>Password</FormLabel>
-                        <a
-                          href="#"
-                          className="ml-auto text-sm underline-offset-2 hover:underline"
-                        >
-                          Forgot your password?
-                        </a>
-                      </div>
+                      <FormLabel>Password</FormLabel>
                       <FormControl>
                         <Input type="password" {...field} />
                       </FormControl>

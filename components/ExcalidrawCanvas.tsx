@@ -6,6 +6,7 @@ import "@excalidraw/excalidraw/index.css";
 import { useCanvasStore } from "@/lib/store/canvasStore";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalidrawAPI = any;
@@ -85,6 +86,7 @@ export default function ExcalidrawCanvas({
         setHasLoadedFromDatabase(true);
       } catch (error) {
         console.error("Error parsing canvas elements from database:", error);
+        toast.error("Failed to load your canvas from the database.");
         // Fallback to empty canvas
         loadFromDatabase("", []);
         setHasLoadedFromDatabase(true);
@@ -135,6 +137,7 @@ export default function ExcalidrawCanvas({
       })
       .catch((error) => {
         console.error("Failed to persist canvas:", error);
+        toast.error("Failed to save changes to the canvas.");
       });
 
     lastPersistRef.current = { elementsString, mermaidCode };
