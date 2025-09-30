@@ -22,34 +22,25 @@ export interface ConnectOptions {
 export function useRealtimeSession() {
   const sessionRef = useRef<RealtimeSession | null>(null);
   const [status, setStatus] = useState<SessionStatus>("DISCONNECTED");
-  const onTranscriptionRef = useRef<((event: TranscriptionEvent) => void) | null>(null);
+  const onTranscriptionRef = useRef<
+    ((event: TranscriptionEvent) => void) | null
+  >(null);
   const transcriptAccumulatorRef = useRef<TranscriptAccumulator | null>(null);
-  // Transcript accumulation for debugging/reference
 
   const updateStatus = useCallback((s: SessionStatus) => {
     setStatus(s);
   }, []);
 
-  // No auto-triggering processor - agent decides when to respond
-  // Just accumulate transcripts and let agent make intelligent decisions
-
   const handleTransportEvent = useCallback((event: any) => {
     // Handle transcription events
     switch (event.type) {
       case "conversation.item.input_audio_transcription.completed": {
-        // Console log the GPT-4o transcription output
-        console.log("🎤 GPT-4o Transcription Event:", {
-          type: event.type,
-          transcript: event.transcript,
-          timestamp: new Date().toISOString(),
-          rawEvent: event,
-        });
-
         // Add transcript to accumulator
         if (transcriptAccumulatorRef.current && event.transcript) {
-          transcriptAccumulatorRef.current.addChunk(event.transcript, Date.now());
-          console.log("📝 Added to accumulator:", event.transcript);
-          console.log("📊 Accumulator state:", transcriptAccumulatorRef.current.getDebugInfo());
+          transcriptAccumulatorRef.current.addChunk(
+            event.transcript,
+            Date.now()
+          );
         }
 
         if (onTranscriptionRef.current && event.transcript) {
@@ -58,21 +49,10 @@ export function useRealtimeSession() {
             text: event.transcript,
             timestamp: Date.now(),
           });
-          console.log("🔔 Fired transcription callback with:", event.transcript);
         }
 
-        // DO NOT send transcript as separate message - it's already handled by transcription
-        // The server automatically includes transcribed audio in the conversation
-
-        // Optionally trigger response when agent should respond
-        // For now, let the agent decide via turn detection or we can add logic later
         break;
       }
-      default:
-        // Log other transport events for debugging
-        if (event.type && event.type.includes("transcription")) {
-          console.log("🎵 Other transcription event:", event.type, event);
-        }
     }
   }, []);
 
@@ -111,13 +91,6 @@ export function useRealtimeSession() {
             },
           },
         };
-
-        console.log("🔧 Creating RealtimeSession with config:", {
-          model: sessionConfig.model,
-          transcriptionModel: sessionConfig.config.inputAudioTranscription.model,
-          vadThreshold: sessionConfig.config.turnDetection.threshold,
-          silenceDurationMs: sessionConfig.config.turnDetection.silenceDurationMs,
-        });
 
         sessionRef.current = new RealtimeSession(agent, sessionConfig);
 
@@ -169,7 +142,6 @@ export function useRealtimeSession() {
     sendEvent,
     pushToTalkStart,
     pushToTalkStop,
-    // Transcript accumulator for debugging
     transcriptDebugInfo: transcriptAccumulatorRef.current?.getDebugInfo(),
   } as const;
 }

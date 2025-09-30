@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getToken } from "@/lib/auth/auth-server";
+import { fetchAction } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 // Application-level timeout (30 seconds)
 const REQUEST_TIMEOUT_MS = 30000;
@@ -16,6 +19,30 @@ export async function POST(req: NextRequest) {
   activeRequests.set(requestId, abortController);
 
   try {
+    // Get authentication token
+    const token = await getToken();
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Check Autumn access for collaborative canvas via Convex
+    const result = await fetchAction(
+      api.autumn.check,
+      { featureId: "collaborative_canvas" },
+      { token }
+    );
+
+    if (result.error || !result.data?.allowed) {
+      return NextResponse.json(
+        { error: "Pro access required for diagram generation" },
+        { status: 403 }
+      );
+    }
+
     const tReceived = Date.now();
     const body = await req.json();
 

@@ -12,9 +12,5 @@ export default async function Home() {
     redirect("/sign-in");
   }
 
-  const user = await fetchQuery(api.auth.getCurrentUser, {}, { token });
-
-  console.log(user);
-
   return <HomeLayout />;
 }

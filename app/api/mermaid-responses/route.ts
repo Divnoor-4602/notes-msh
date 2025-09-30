@@ -1,15 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Agent, run } from "@openai/agents";
 import { getMermaidAgentConfig } from "@/lib/agent/mermaidAgent";
-import { extractFilteredCanvasContext, validateGeneratedMermaid } from "@/lib/agent/mermaidAgent/utils";
+import {
+  extractFilteredCanvasContext,
+  validateGeneratedMermaid,
+} from "@/lib/agent/mermaidAgent/utils";
 import type { CreateAgentOptions } from "@/lib/validations/tool.schema";
+import { getToken } from "@/lib/auth/auth-server";
+import { fetchAction } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 export async function POST(request: NextRequest) {
   try {
+    // Get authentication token
+    const token = await getToken();
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Check Autumn access for collaborative canvas via Convex
+    const result = await fetchAction(
+      api.autumn.check,
+      { featureId: "collaborative_canvas" },
+      { token }
+    );
+
+    if (result.error || !result.data?.allowed) {
+      return NextResponse.json(
+        { error: "Pro access required for Mermaid generation" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     // Extract request parameters
-    const { elements, currentMermaidCode, agentOptions = {}, canvasContext: providedCanvasContext } = body;
+    const {
+      elements,
+      currentMermaidCode,
+      agentOptions = {},
+      canvasContext: providedCanvasContext,
+    } = body;
 
     // Use provided canvas context or fallback to extracting from elements
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,7 +66,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Get agent configuration
-    const agentConfig = getMermaidAgentConfig(agentOptions as CreateAgentOptions);
+    const agentConfig = getMermaidAgentConfig(
+      agentOptions as CreateAgentOptions
+    );
 
     // Create the mermaid agent
     const agent = new Agent({
@@ -41,7 +78,9 @@ export async function POST(request: NextRequest) {
 
     // Filter out empty subgraphs for cleaner output
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const nonEmptySubgraphs = canvasContext.subgraphs.filter((sg: any) => sg.nodes.length > 0);
+    const nonEmptySubgraphs = canvasContext.subgraphs.filter(
+      (sg: any) => sg.nodes.length > 0
+    );
 
     // Prepare input message for the agent
     let inputMessage = `Generate Mermaid flowchart code for the current canvas state.
@@ -62,7 +101,9 @@ Canvas Context:
 Nodes:
 ${canvasContext.nodes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .map((node: any, index: number) => `${index + 1}. ${node.type}: "${node.label}"`)
+  .map(
+    (node: any, index: number) => `${index + 1}. ${node.type}: "${node.label}"`
+  )
   .join("\n")}
 
 Connections:
@@ -77,12 +118,14 @@ ${canvasContext.edges
     const targetNode = canvasContext.nodes[edge.target];
 
     if (!sourceNode || !targetNode) {
-      return `- Connection ${edgeIndex + 1}: Invalid node indices${edge.label ? ` (label: "${edge.label}")` : ""}`;
+      return `- Connection ${edgeIndex + 1}: Invalid node indices${
+        edge.label ? ` (label: "${edge.label}")` : ""
+      }`;
     }
 
-    return `- "${sourceNode.label}" (Node ${sourceIndex}) connects to "${targetNode.label}" (Node ${targetIndex})${
-      edge.label ? ` (label: "${edge.label}")` : ""
-    }`;
+    return `- "${sourceNode.label}" (Node ${sourceIndex}) connects to "${
+      targetNode.label
+    }" (Node ${targetIndex})${edge.label ? ` (label: "${edge.label}")` : ""}`;
   })
   .join("\n")}
 
@@ -91,11 +134,18 @@ ${
     ? `Subgraphs:
 ${nonEmptySubgraphs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .map((sg: any, index: number) => `${index + 1}. "${sg.label}" (contains ${sg.nodes.length} nodes)`)
+  .map(
+    (sg: any, index: number) =>
+      `${index + 1}. "${sg.label}" (contains ${sg.nodes.length} nodes)`
+  )
   .join("\n")}\n`
     : ""
 }
-${currentMermaidCode ? `\nCurrent Mermaid Code (for reference):\n\`\`\`mermaid\n${currentMermaidCode}\n\`\`\`\n` : ""}
+${
+  currentMermaidCode
+    ? `\nCurrent Mermaid Code (for reference):\n\`\`\`mermaid\n${currentMermaidCode}\n\`\`\`\n`
+    : ""
+}
 Generate complete Mermaid flowchart code that represents this canvas state. Remember to:
 1. Create meaningful IDs based on node labels: "whats this" → start, "New change" → updateProcess
 2. Use the provided LABELS as the actual text in nodes: (whats this), (New change)
@@ -127,7 +177,8 @@ flowchart TD
         mermaidCode = result.finalOutput.trim();
       } else {
         // Try to extract from output array
-        const outputStrings = result.output?.filter((item) => typeof item === "string") || [];
+        const outputStrings =
+          result.output?.filter((item) => typeof item === "string") || [];
         mermaidCode = outputStrings.join("\n").trim();
       }
 
@@ -148,12 +199,17 @@ flowchart TD
       const validation = validateGeneratedMermaid(mermaidCode);
 
       // Check if we have Excalidraw ID issues
-      const hasExcalidrawIds = validation.errors.some((error) => error.includes("Detected Excalidraw element IDs"));
+      const hasExcalidrawIds = validation.errors.some((error) =>
+        error.includes("Detected Excalidraw element IDs")
+      );
 
       if (!hasExcalidrawIds) {
         // Success! No Excalidraw IDs detected
         if (!validation.isValid) {
-          console.warn("Generated Mermaid code has validation issues:", validation.errors);
+          console.warn(
+            "Generated Mermaid code has validation issues:",
+            validation.errors
+          );
           // Return with warnings for other validation issues
           return NextResponse.json({
             success: true,
@@ -166,7 +222,10 @@ flowchart TD
 
       // We have Excalidraw IDs - retry with stronger message
       retryCount++;
-      console.warn(`Attempt ${retryCount}: Agent used Excalidraw IDs, retrying...`, validation.errors);
+      console.warn(
+        `Attempt ${retryCount}: Agent used Excalidraw IDs, retrying...`,
+        validation.errors
+      );
 
       if (retryCount <= maxRetries) {
         // Prepend retry instructions to the original canvas context
@@ -209,7 +268,9 @@ Canvas Context:
 Nodes:
 ${canvasContext.nodes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .map((node: any, index: number) => `${index + 1}. ${node.type}: "${node.label}"`)
+  .map(
+    (node: any, index: number) => `${index + 1}. ${node.type}: "${node.label}"`
+  )
   .join("\n")}
 
 Connections:
@@ -224,12 +285,14 @@ ${canvasContext.edges
     const targetNode = canvasContext.nodes[edge.target];
 
     if (!sourceNode || !targetNode) {
-      return `- Connection ${edgeIndex + 1}: Invalid node indices${edge.label ? ` (label: "${edge.label}")` : ""}`;
+      return `- Connection ${edgeIndex + 1}: Invalid node indices${
+        edge.label ? ` (label: "${edge.label}")` : ""
+      }`;
     }
 
-    return `- "${sourceNode.label}" (Node ${sourceIndex}) connects to "${targetNode.label}" (Node ${targetIndex})${
-      edge.label ? ` (label: "${edge.label}")` : ""
-    }`;
+    return `- "${sourceNode.label}" (Node ${sourceIndex}) connects to "${
+      targetNode.label
+    }" (Node ${targetIndex})${edge.label ? ` (label: "${edge.label}")` : ""}`;
   })
   .join("\n")}
 
@@ -238,11 +301,18 @@ ${
     ? `Subgraphs:
 ${nonEmptySubgraphs
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  .map((sg: any, index: number) => `${index + 1}. "${sg.label}" (contains ${sg.nodes.length} nodes)`)
+  .map(
+    (sg: any, index: number) =>
+      `${index + 1}. "${sg.label}" (contains ${sg.nodes.length} nodes)`
+  )
   .join("\n")}\n`
     : ""
 }
-${currentMermaidCode ? `\nCurrent Mermaid Code (for reference):\n\`\`\`mermaid\n${currentMermaidCode}\n\`\`\`\n` : ""}
+${
+  currentMermaidCode
+    ? `\nCurrent Mermaid Code (for reference):\n\`\`\`mermaid\n${currentMermaidCode}\n\`\`\`\n`
+    : ""
+}
 Generate complete Mermaid flowchart code that represents this canvas state. Remember to:
 1. Create meaningful IDs based on node labels: "whats this" → start, "New change" → updateProcess
 2. Use the provided LABELS as the actual text in nodes: (whats this), (New change)
@@ -285,7 +355,10 @@ flowchart TD
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to generate Mermaid code",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate Mermaid code",
       },
       { status: 500 }
     );

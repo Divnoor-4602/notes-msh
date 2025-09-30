@@ -28,7 +28,13 @@ const Excalidraw = dynamic(
   }
 );
 
-export default function ExcalidrawCanvas() {
+interface ExcalidrawCanvasProps {
+  canEdit?: boolean;
+}
+
+export default function ExcalidrawCanvas({
+  canEdit = true,
+}: ExcalidrawCanvasProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [hasLoadedFromDatabase, setHasLoadedFromDatabase] = useState(false);
   const setExcalidrawAPI = useCanvasStore((state) => state.setExcalidrawAPI);
@@ -173,7 +179,11 @@ export default function ExcalidrawCanvas() {
 
   return (
     <div style={{ height: "100vh", width: "100%" }}>
-      <Excalidraw excalidrawAPI={handleExcalidrawAPI} onChange={handleChange} />
+      <Excalidraw
+        excalidrawAPI={handleExcalidrawAPI}
+        onChange={handleChange}
+        viewModeEnabled={!canEdit}
+      />
     </div>
   );
 }

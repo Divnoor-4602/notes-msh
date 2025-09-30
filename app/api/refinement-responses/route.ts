@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { Agent, run } from "@openai/agents";
 import { getRefinementAgentConfig } from "@/lib/agent/refinementAgent";
 import type { CreateAgentOptions } from "@/lib/validations/tool.schema";
+import { getToken } from "@/lib/auth/auth-server";
+import { fetchAction } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 // TODO: Import proper OpenAI client configuration when ready
 // TODO: Import context providers when ready
@@ -9,6 +12,30 @@ import type { CreateAgentOptions } from "@/lib/validations/tool.schema";
 
 export async function POST(request: NextRequest) {
   try {
+    // Get authentication token
+    const token = await getToken();
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    // Check Autumn access for collaborative canvas via Convex
+    const accessResult = await fetchAction(
+      api.autumn.check,
+      { featureId: "collaborative_canvas" },
+      { token }
+    );
+
+    if (accessResult.error || !accessResult.data?.allowed) {
+      return NextResponse.json(
+        { error: "Pro access required for canvas refinement" },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
 
     // Extract request parameters
