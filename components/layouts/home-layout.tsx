@@ -32,8 +32,11 @@ const HomeLayout = () => {
       <ExcalidrawCanvas canEdit={data?.allowed} />
 
       <div className="absolute top-4 right-4 z-50 flex items-center gap-4">
-        <TrialStatusCard />
         <SignOutButton />
+      </div>
+
+      <div className="absolute bottom-20 left-4 z-50 flex items-center gap-4">
+        <TrialStatusCard />
       </div>
 
       {/* Manual paywall dialog */}

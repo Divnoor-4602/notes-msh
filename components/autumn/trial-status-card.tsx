@@ -4,29 +4,39 @@ import React from "react";
 import { useCustomer } from "autumn-js/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, Calendar } from "lucide-react";
+import { motion } from "motion/react";
+import { BadgePercentIcon, CircleIcon, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function TrialStatusCard() {
-  const { customer, isLoading } = useCustomer({ errorOnNotFound: false });
+  const { customer, isLoading, openBillingPortal } = useCustomer({
+    errorOnNotFound: false,
+  });
 
   // Show loading skeleton while data is loading
   if (isLoading) {
     return (
-      <Card className="w-64 shadow-lg border-l-4 border-l-gray-200">
-        <CardContent className="p-3">
-          <div className="flex items-center gap-2">
+      <div className="bg-gray-100/70 pb-0.5 rounded-2xl px-0.5 relative overflow-hidden">
+        {/* Decorative shapes skeleton */}
+        <div className="flex justify-between items-center px-2 my-3">
+          <div className="flex items-center gap-1">
             <Skeleton className="w-4 h-4 rounded" />
-            <div className="flex-1">
-              <Skeleton className="h-4 w-24 mb-1" />
-              <Skeleton className="h-3 w-20" />
-            </div>
-            <Skeleton className="w-4 h-4 rounded" />
+            <Skeleton className="h-3 w-20" />
           </div>
-          <div className="mt-2">
-            <Skeleton className="h-3 w-32" />
+          <div className="flex items-center gap-1">
+            <Skeleton className="w-2 h-2 rounded-full" />
+            <Skeleton className="w-1.5 h-1.5" />
+            <Skeleton className="w-2 h-2" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="border border-gray-200 px-4 py-4 rounded-xl w-56 flex flex-col gap-4 bg-white z-1">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="h-8 w-full rounded-lg" />
+        </div>
+      </div>
     );
   }
 
@@ -145,26 +155,100 @@ export default function TrialStatusCard() {
   }
 
   return (
-    <Card className="w-64 shadow-lg border-l-4 border-l-blue-500">
-      <CardContent className="p-3">
-        <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-blue-500" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">
-              Free Trial Active
-            </p>
-            <p className="text-xs text-gray-600">
-              {daysRemaining === 1
-                ? "1 day remaining"
-                : `${daysRemaining} days remaining`}
-            </p>
+    <motion.div
+      className="bg-gray-100/70 pb-0.5 rounded-2xl px-0.5 relative overflow-hidden"
+      whileHover="hover"
+      initial="initial"
+    >
+      {/* Decorative shapes in top right corner */}
+      <div className="flex justify-between items-center px-2 my-3">
+        <div className="flex items-center gap-1">
+          <BadgePercentIcon className="w-4 h-4 text-gray-600" />
+          {/* text */}
+          <div className="text-xs text-gray-600">Get notes0 Pro</div>
+        </div>
+        <div className="flex items-center gap-1">
+          <motion.div
+            className="w-2 h-2 bg-gray-600 rounded-full"
+            variants={{
+              initial: { scale: 1 },
+              hover: {
+                scale: [1, 1.2, 1],
+                transition: {
+                  duration: 0.6,
+                  ease: "easeOut",
+                  delay: 0,
+                  repeat: Infinity,
+                  repeatDelay: 0.5,
+                },
+              },
+            }}
+          />
+          <motion.div
+            className="w-1.5 h-1.5 bg-gray-600 transform rotate-45"
+            variants={{
+              initial: { scale: 1 },
+              hover: {
+                scale: [1, 1.2, 1],
+                transition: {
+                  duration: 0.6,
+                  ease: "easeOut",
+                  delay: 0.1,
+                  repeat: Infinity,
+                  repeatDelay: 0.5,
+                },
+              },
+            }}
+          />
+          <motion.div
+            className="w-2 h-2 bg-gray-600"
+            variants={{
+              initial: { scale: 1 },
+              hover: {
+                scale: [1, 1.2, 1],
+                transition: {
+                  duration: 0.6,
+                  ease: "easeOut",
+                  delay: 0.2,
+                  repeat: Infinity,
+                  repeatDelay: 0.5,
+                },
+              },
+            }}
+          />
+        </div>
+      </div>
+      <div className="border border-gray-200  px-4 py-4 rounded-xl w-56 flex flex-col gap-4 bg-white z-1">
+        <div className="flex justify-between items-center">
+          <div className="text-base text-black font-medium">Free trial</div>
+          <div className="text-xs text-gray-500">
+            {daysRemaining === 1 ? "1 day left" : `${daysRemaining} days left`}
           </div>
-          <Calendar className="w-4 h-4 text-gray-400" />
+          {/* upgrade button */}
         </div>
-        <div className="mt-2 text-xs text-gray-500">
-          Trial ends on {trialEndDate.toLocaleDateString()}
-        </div>
-      </CardContent>
-    </Card>
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+          className="cursor-pointer text-sm bg-zinc-800 text-white py-2 px-4 rounded-lg"
+          onClick={async () => {
+            try {
+              toast.success("Opening billing portal", {
+                icon: <Loader2 className="w-4 h-4 animate-spin" />,
+              });
+              await openBillingPortal({
+                returnUrl:
+                  process.env.NODE_ENV === "development"
+                    ? "http://localhost:3000/"
+                    : "https://notes0.app/",
+              });
+            } catch (error) {
+              console.error("Failed to open billing portal:", error);
+            }
+          }}
+        >
+          Upgrade
+        </motion.button>
+      </div>
+    </motion.div>
   );
 }
