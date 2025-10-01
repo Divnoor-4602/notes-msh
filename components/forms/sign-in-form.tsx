@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import { toast } from "sonner";
 import { AuthAgent } from "@/components/shared/auth-agent";
@@ -39,6 +39,8 @@ export function SignInForm({
 }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") || "/";
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -56,7 +58,7 @@ export function SignInForm({
         email: values.email,
         password: values.password,
         rememberMe: true, // Keep user signed in
-        callbackURL: "/", // Redirect after successful signin
+        callbackURL: returnUrl, // Redirect to returnUrl or home
       });
 
       if (error) {
@@ -124,7 +126,11 @@ export function SignInForm({
                 <div className="text-center text-sm">
                   Don&apos;t have an account?{" "}
                   <Link
-                    href="/sign-up"
+                    href={
+                      returnUrl !== "/"
+                        ? `/sign-up?returnUrl=${encodeURIComponent(returnUrl)}`
+                        : "/sign-up"
+                    }
                     className="underline underline-offset-4"
                   >
                     Sign up

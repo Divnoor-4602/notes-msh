@@ -14,6 +14,7 @@ import type * as canvas from "../canvas.js";
 import type * as email from "../email.js";
 import type * as emailActions from "../emailActions.js";
 import type * as http from "../http.js";
+import type * as sharing from "../sharing.js";
 import type * as trialMonitoring from "../trialMonitoring.js";
 
 import type {
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   email: typeof email;
   emailActions: typeof emailActions;
   http: typeof http;
+  sharing: typeof sharing;
   trialMonitoring: typeof trialMonitoring;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

@@ -689,3 +689,171 @@ export const sendSubscriptionActivatedEmail = internalMutation({
     return null;
   },
 });
+
+export const sendCanvasShareEmail = internalMutation({
+  args: {
+    recipientEmail: v.string(),
+    senderName: v.string(),
+    shareUrl: v.string(),
+    customMessage: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (
+    ctx,
+    { recipientEmail, senderName, shareUrl, customMessage }
+  ) => {
+    const siteUrl = process.env.SITE_URL || "https://notes0.app";
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${senderName} shared a canvas with you</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+              background-color: #f9fafb;
+            }
+            .container {
+              background: white;
+              border-radius: 12px;
+              padding: 40px;
+              box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+            }
+            .logo {
+              font-size: 28px;
+              font-weight: bold;
+              color: #2563eb;
+              margin-bottom: 10px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: 600;
+              color: #1f2937;
+              margin-bottom: 20px;
+            }
+            .share-badge {
+              background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+              color: white;
+              padding: 8px 16px;
+              border-radius: 20px;
+              font-size: 14px;
+              font-weight: 600;
+              display: inline-block;
+              margin-bottom: 20px;
+            }
+            .message-box {
+              background: #f8fafc;
+              border-left: 4px solid #2563eb;
+              padding: 16px;
+              margin: 20px 0;
+              border-radius: 4px;
+              font-style: italic;
+            }
+            .cta-button {
+              display: inline-block;
+              background: #2563eb !important;
+              color: #ffffff !important;
+              padding: 14px 28px;
+              text-decoration: none !important;
+              border-radius: 8px;
+              font-weight: 600;
+              margin: 20px 0;
+              border: none;
+              font-size: 16px;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+              color: #6b7280;
+              font-size: 14px;
+            }
+            .info-box {
+              background: #f0f9ff;
+              border-radius: 8px;
+              padding: 16px;
+              margin: 20px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">Notes0</div>
+              <h1 class="title">${senderName} shared a canvas with you</h1>
+              <div class="share-badge">Canvas Share 🎨</div>
+            </div>
+            
+            <div class="content">
+              <p>Hi there,</p>
+              
+              <p><strong>${senderName}</strong> wants to share a canvas with you on Notes0!</p>
+              
+              ${
+                customMessage
+                  ? `
+                <div class="message-box">
+                  <strong>Message from ${senderName}:</strong><br>
+                  "${customMessage}"
+                </div>
+              `
+                  : ""
+              }
+              
+              <div class="info-box">
+                <p style="margin: 0;"><strong>What is a shared canvas?</strong></p>
+                <p style="margin: 8px 0 0 0;">A canvas is a collaborative diagram created with Notes0. You can import this canvas into your account and view or edit it with our powerful diagramming tools.</p>
+              </div>
+              
+              <p>Click the button below to view and import this canvas:</p>
+              
+              <div style="text-align: center;">
+                <a href="${shareUrl}" class="cta-button">View & Import Canvas</a>
+              </div>
+              
+              <p style="text-align: center; font-size: 14px; color: #6b7280;">
+                <small>This link will expire in 30 days</small>
+              </p>
+              
+              <p>Once imported, you can:</p>
+              <ul>
+                <li>✨ View the complete diagram</li>
+                <li>🔄 Replace your current canvas with this one</li>
+                <li>🎨 Merge it with your existing canvas</li>
+                <li>✏️ Edit and customize as needed</li>
+              </ul>
+            </div>
+            
+            <div class="footer">
+              <p>New to Notes0? <a href="${siteUrl}" style="color: #2563eb;">Sign up for free</a> to start creating diagrams with voice!</p>
+              <p>Questions? Contact us at support@notes0.app</p>
+              <p>Happy diagramming!<br>The Notes0 Team</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    await resend.sendEmail(ctx, {
+      from: "noor@notes0.app",
+      to: recipientEmail,
+      subject: `${senderName} shared a canvas with you on Notes0 🎨`,
+      html: html,
+    });
+
+    return null;
+  },
+});

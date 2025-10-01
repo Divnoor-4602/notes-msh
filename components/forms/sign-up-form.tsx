@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import { toast } from "sonner";
 import { AuthAgent } from "@/components/shared/auth-agent";
@@ -50,6 +50,8 @@ export function SignUpForm({
 }: React.ComponentProps<"div">) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") || "/";
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -69,7 +71,7 @@ export function SignUpForm({
         name: values.name,
         email: values.email,
         password: values.password,
-        callbackURL: "/", // Redirect after successful signup
+        callbackURL: returnUrl, // Redirect to returnUrl or home
       });
 
       if (error) {
@@ -81,7 +83,7 @@ export function SignUpForm({
       }
 
       // Success - user is automatically signed in after signup
-      router.push("/");
+      router.push(returnUrl);
     } catch (_err) {
       setIsLoading(false);
       toast.error("An unexpected error occurred. Please try again.");

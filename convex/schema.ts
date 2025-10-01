@@ -26,4 +26,21 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_subscription_status", ["subscriptionStatus"])
     .index("by_trial_end", ["trialEndsAt"]),
+
+  sharedCanvases: defineTable({
+    shareToken: v.string(), // unique token for sharing
+    originalCanvasId: v.id("canvas"), // reference to original canvas
+    sharedByUserId: v.string(), // user who created the share
+    sharedByUserName: v.optional(v.string()), // name of user who shared
+    sharedByUserEmail: v.optional(v.string()), // email of user who shared
+    elements: v.string(), // snapshot of canvas elements at share time
+    mermaidCode: v.optional(v.string()), // snapshot of mermaid code at share time
+    expiresAt: v.optional(v.number()), // timestamp when share expires (optional)
+    isPublic: v.boolean(), // whether share is public or invite-only
+    accessCount: v.number(), // number of times canvas has been accessed/imported
+    createdAt: v.number(), // timestamp when share was created
+  })
+    .index("by_shareToken", ["shareToken"])
+    .index("by_sharedByUserId", ["sharedByUserId"])
+    .index("by_expiresAt", ["expiresAt"]),
 });
