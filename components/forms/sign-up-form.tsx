@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -21,6 +20,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth/auth-client";
 import { toast } from "sonner";
+import { AuthAgent } from "@/components/shared/auth-agent";
 
 const formSchema = z
   .object({
@@ -172,15 +172,7 @@ export function SignUpForm({
               </div>
             </form>
           </Form>
-          <div className="bg-muted relative hidden md:block">
-            <Image
-              src="/placeholder.svg"
-              alt="Image"
-              fill
-              priority
-              className="object-cover dark:brightness-[0.2] dark:grayscale"
-            />
-          </div>
+          <AuthAgent />
         </CardContent>
       </Card>
     </div>
