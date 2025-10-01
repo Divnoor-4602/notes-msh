@@ -72,6 +72,11 @@ export const createAuth = (
     },
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
+    trustedOrigins: [
+      "https://notes0.app",
+      "https://www.notes0.app",
+      "http://localhost:3000",
+    ],
     // Configure simple, non-verified email/password to get started
     emailAndPassword: {
       enabled: true,
