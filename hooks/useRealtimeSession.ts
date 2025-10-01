@@ -14,6 +14,8 @@ export interface TranscriptionEvent {
   timestamp: number;
 }
 
+export type TranscriptionStatus = "idle" | "listening" | "processing";
+
 export interface ConnectOptions {
   getEphemeralKey: () => Promise<string>;
   onTranscription?: (event: TranscriptionEvent) => void;
@@ -22,6 +24,8 @@ export interface ConnectOptions {
 export function useRealtimeSession() {
   const sessionRef = useRef<RealtimeSession | null>(null);
   const [status, setStatus] = useState<SessionStatus>("DISCONNECTED");
+  const [transcriptionStatus, setTranscriptionStatus] =
+    useState<TranscriptionStatus>("idle");
   const onTranscriptionRef = useRef<
     ((event: TranscriptionEvent) => void) | null
   >(null);
@@ -35,6 +39,9 @@ export function useRealtimeSession() {
     // Handle transcription events
     switch (event.type) {
       case "conversation.item.input_audio_transcription.completed": {
+        // Set processing state when transcription is received
+        setTranscriptionStatus("processing");
+
         // Add transcript to accumulator
         if (transcriptAccumulatorRef.current && event.transcript) {
           transcriptAccumulatorRef.current.addChunk(
@@ -51,6 +58,16 @@ export function useRealtimeSession() {
           });
         }
 
+        // Reset to idle after a short delay
+        setTimeout(() => {
+          setTranscriptionStatus("idle");
+        }, 500);
+
+        break;
+      }
+      case "conversation.item.input_audio_buffer.committed": {
+        // Set listening state when audio buffer is committed (user is speaking)
+        setTranscriptionStatus("listening");
         break;
       }
     }
@@ -114,6 +131,7 @@ export function useRealtimeSession() {
     onTranscriptionRef.current = null;
     transcriptAccumulatorRef.current?.clear();
     transcriptAccumulatorRef.current = null;
+    setTranscriptionStatus("idle");
     updateStatus("DISCONNECTED");
   }, [updateStatus]);
 
@@ -137,6 +155,7 @@ export function useRealtimeSession() {
 
   return {
     status,
+    transcriptionStatus,
     connect,
     disconnect,
     sendEvent,

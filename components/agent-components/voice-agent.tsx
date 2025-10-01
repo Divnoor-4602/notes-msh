@@ -1,18 +1,48 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect } from "react";
+import { useRealtimeSession } from "../../hooks/useRealtimeSession";
+import useMightyMouse from "react-hook-mighty-mouse";
+import { motion } from "motion/react";
 import {
-  useRealtimeSession,
-  TranscriptionEvent,
-} from "../../hooks/useRealtimeSession";
+  RadioIcon,
+  Headphones,
+  Volume2,
+  Diamond,
+  Square,
+  Circle,
+  PencilRuler,
+} from "lucide-react";
+
+export type VoiceAgentState =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnecting"
+  | "listening"
+  | "generating_diagram";
 
 export default function VoiceAgent() {
-  const [error, setError] = useState<string | null>(null);
-  const [transcriptions, setTranscriptions] = useState<TranscriptionEvent[]>(
-    []
-  );
+  const [agentState, setAgentState] = useState<VoiceAgentState>("idle");
+  const [isHovering, setIsHovering] = useState(false);
 
-  const { status, connect, disconnect } = useRealtimeSession();
+  const { status, transcriptionStatus, connect, disconnect } =
+    useRealtimeSession();
+  const { selectedElement } = useMightyMouse(true, "voice-agent-face");
+
+  // Get canvas store states (removed unused variables)
+
+  // Console log state changes
+  React.useEffect(() => {
+    console.log("Voice Agent State:", agentState);
+  }, [agentState]);
+
+  // Handle state transitions based on real session states
+  useEffect(() => {
+    if (status === "CONNECTED") {
+      setAgentState("generating_diagram");
+    }
+  }, [status]);
 
   const getEphemeralKey = async () => {
     const response = await fetch("/api/token");
@@ -23,111 +53,234 @@ export default function VoiceAgent() {
     return data.value;
   };
 
-  const handleTranscription = useCallback((event: TranscriptionEvent) => {
-    setTranscriptions((prev) => [...prev, event]);
-  }, []);
-
   const handleConnect = async () => {
     try {
-      setError(null);
+      setAgentState("connecting");
       await connect({
         getEphemeralKey,
-        onTranscription: handleTranscription,
       });
+      setAgentState("connected");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to connect");
+      setAgentState("idle");
     }
   };
 
   const handleDisconnect = () => {
     disconnect();
-    setTranscriptions([]); // Clear transcriptions on disconnect
+    // Add a brief disconnect animation before returning to idle
+    setAgentState("disconnecting");
+    setTimeout(() => {
+      setAgentState("idle");
+    }, 800); // Match the duration of the disconnect animation
   };
 
-  const clearTranscriptions = () => {
-    setTranscriptions([]);
+  // Calculate eye movement based on mouse position relative to the face
+  const getEyeOffset = (eyePosition: "left" | "right") => {
+    if (!selectedElement?.position.x || !selectedElement?.position.y) {
+      return { x: 0, y: 0 };
+    }
+
+    const faceWidth = 64; // size-16 = 64px
+    const faceHeight = 64;
+    const eyeRadius = 2.5; // Very small movement radius for subtle tracking
+
+    // Calculate relative position from -1 to 1
+    const relativeX =
+      (selectedElement.position.x - faceWidth / 2) / (faceWidth / 2);
+    const relativeY =
+      (selectedElement.position.y - faceHeight / 2) / (faceHeight / 2);
+
+    // Clamp values to prevent eyes from going too far
+    const clampedX = Math.max(-1, Math.min(1, relativeX));
+    const clampedY = Math.max(-1, Math.min(1, relativeY));
+
+    // Calculate very subtle eye movement
+    const eyeX = clampedX * eyeRadius * 1.5; // Very reduced movement
+    const eyeY = clampedY * eyeRadius * 1.5;
+
+    return {
+      x: eyeX,
+      y: eyeY,
+    };
   };
 
-  const getStatusColor = () => {
-    switch (status) {
-      case "CONNECTED":
-        return "bg-green-100 border-green-300 text-green-800";
-      case "CONNECTING":
-        return "bg-yellow-100 border-yellow-300 text-yellow-800";
-      case "DISCONNECTED":
-        return "bg-gray-100 border-gray-300 text-gray-800";
+  const leftEyeOffset = getEyeOffset("left");
+  const rightEyeOffset = getEyeOffset("right");
+
+  // Get state-specific eye animations
+  const getEyeAnimation = (eyePosition: "left" | "right") => {
+    switch (agentState) {
+      case "idle":
+        return {
+          animate: {
+            height: ["1rem", "0.125rem", "1rem"],
+          },
+          transition: {
+            duration: 0.25,
+            repeat: Infinity,
+            repeatType: "loop" as const,
+            repeatDelay: 2.75,
+          },
+        };
       default:
-        return "bg-gray-100 border-gray-300 text-gray-800";
+        return {
+          animate: {
+            height: "1rem",
+          },
+          transition: {
+            duration: 0.3,
+          },
+        };
     }
   };
 
+  // Get floating icons/shapes for each state
+  const getFloatingElements = () => {
+    const elements = [];
+    const count = 6;
+
+    // Pastel colors array
+    const pastelColors = [
+      "text-pink-300 fill-pink-300",
+      "text-blue-300 fill-blue-300",
+      "text-green-300 fill-green-300",
+      "text-yellow-300 fill-yellow-300",
+      "text-purple-300 fill-purple-300",
+      "text-indigo-300 fill-indigo-300",
+      "text-red-300 fill-red-300",
+      "text-orange-300 fill-orange-300",
+      "text-teal-300 fill-teal-300",
+      "text-rose-300 fill-rose-300",
+    ];
+
+    // Pre-assign colors based on agentState and index for consistency
+    const colorSeed = agentState === "generating_diagram" ? 123 : 456;
+
+    for (let i = 0; i < count; i++) {
+      let Icon;
+      // Use deterministic color selection based on state and index
+      const colorIndex = (colorSeed + i) % pastelColors.length;
+      const randomColor = pastelColors[colorIndex];
+
+      switch (agentState) {
+        case "connecting":
+          Icon = RadioIcon;
+          break;
+        case "connected":
+          Icon = Headphones;
+          break;
+        case "generating_diagram":
+          // Only shapes
+          const shapes = [Diamond, Square, Circle];
+          Icon = shapes[i % shapes.length];
+          break;
+        default:
+          return null; // No floating elements for idle or other states
+      }
+
+      elements.push(
+        <motion.div
+          key={`${agentState}-${i}`}
+          className="absolute"
+          initial={{
+            x: 32 + (Math.random() - 0.5) * 30,
+            y: 80,
+            opacity: 0,
+            scale: 0.5,
+          }}
+          animate={{
+            x: 32 + (Math.random() - 0.5) * 30 + (Math.random() - 0.5) * 40,
+            y: -20,
+            opacity: [0, 1, 1, 0],
+            scale: [0.5, 0.8, 0.8, 0.3],
+          }}
+          transition={{
+            duration: 5,
+            repeat: Infinity,
+            repeatDelay: 0.5,
+            delay: i * 0.6,
+            ease: "easeOut",
+          }}
+        >
+          <motion.div
+            key={agentState}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <Icon className={`size-6 ${randomColor}`} />
+          </motion.div>
+        </motion.div>
+      );
+    }
+
+    return elements;
+  };
+
   return (
-    <div className="w-full">
+    <>
       <div
-        className={`px-4 py-3 rounded-lg shadow-lg border ${getStatusColor()}`}
+        id="voice-agent-face"
+        className="rounded-full size-16 bg-white absolute bottom-16 right-0 border border-gray-300 flex flex-col items-center justify-center overflow-hidden cursor-pointer shadow-sm z-20"
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+        onClick={status === "DISCONNECTED" ? handleConnect : handleDisconnect}
       >
-        <div className="flex flex-col gap-2">
-          <div className="text-sm font-medium">
-            Voice Transcription - {status}
-          </div>
+        {/* eyes */}
+        <div className="flex items-center gap-2 justify-center relative">
+          {/* Left Eye */}
+          <motion.div
+            className="absolute"
+            style={{
+              left: "50%",
+              marginLeft: "-16px",
+            }}
+            animate={{
+              x: leftEyeOffset.x,
+              y: leftEyeOffset.y,
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+            }}
+          >
+            <motion.div
+              className="w-1 h-4 bg-gray-800 rounded-full"
+              {...getEyeAnimation("left")}
+            />
+          </motion.div>
 
-          {error && (
-            <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            {status === "DISCONNECTED" ? (
-              <button
-                onClick={handleConnect}
-                className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-              >
-                Connect
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={handleDisconnect}
-                  className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
-                >
-                  Disconnect
-                </button>
-                {status === "CONNECTED" && (
-                  <button
-                    onClick={clearTranscriptions}
-                    className="px-3 py-1 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
-                  >
-                    Clear
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* Transcription Display */}
-          {transcriptions.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-200">
-              <div className="text-xs font-medium text-gray-700 mb-1">
-                Transcriptions:
-              </div>
-              <div className="max-h-32 overflow-y-auto space-y-1">
-                {transcriptions.map((transcription, index) => (
-                  <div
-                    key={index}
-                    className="text-xs bg-gray-50 p-2 rounded border"
-                  >
-                    <div className="text-gray-500 text-[10px] mb-1">
-                      {new Date(transcription.timestamp).toLocaleTimeString()}
-                    </div>
-                    <div className="text-gray-800">{transcription.text}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Right Eye */}
+          <motion.div
+            className="absolute"
+            style={{
+              left: "50%",
+              marginLeft: "6px",
+            }}
+            animate={{
+              x: rightEyeOffset.x,
+              y: rightEyeOffset.y,
+            }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+            }}
+          >
+            <motion.div
+              className="w-1 h-4 bg-gray-800 rounded-full"
+              {...getEyeAnimation("right")}
+            />
+          </motion.div>
         </div>
       </div>
-    </div>
+      {/* Floating elements for different states */}
+      {agentState !== "idle" && (
+        <div className="absolute bottom-32 right-0 w-20 h-20 pointer-events-none z-10">
+          {getFloatingElements()}
+        </div>
+      )}
+    </>
   );
 }
