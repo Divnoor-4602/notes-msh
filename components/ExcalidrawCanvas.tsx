@@ -7,6 +7,7 @@ import { useCanvasStore } from "@/lib/store/canvasStore";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import { WelcomeScreen } from "@excalidraw/excalidraw";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalidrawAPI = any;
@@ -186,7 +187,16 @@ export default function ExcalidrawCanvas({
         excalidrawAPI={handleExcalidrawAPI}
         onChange={handleChange}
         viewModeEnabled={!canEdit}
-      ></Excalidraw>
+      >
+        <WelcomeScreen>
+          <WelcomeScreen.Center>
+            <WelcomeScreen.Center.Heading>
+              Click the voice agent in the bottom right to start creating
+              diagrams with your voice ;p
+            </WelcomeScreen.Center.Heading>
+          </WelcomeScreen.Center>
+        </WelcomeScreen>
+      </Excalidraw>
     </div>
   );
 }
