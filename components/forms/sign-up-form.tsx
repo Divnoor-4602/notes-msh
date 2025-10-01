@@ -84,7 +84,7 @@ export function SignUpForm({
 
       // Success - user is automatically signed in after signup
       router.push(returnUrl);
-    } catch (_err) {
+    } catch {
       setIsLoading(false);
       toast.error("An unexpected error occurred. Please try again.");
     }

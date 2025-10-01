@@ -4,15 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRealtimeSession } from "../../hooks/useRealtimeSession";
 import useMightyMouse from "react-hook-mighty-mouse";
 import { motion } from "motion/react";
-import {
-  RadioIcon,
-  Headphones,
-  Volume2,
-  Diamond,
-  Square,
-  Circle,
-  PencilRuler,
-} from "lucide-react";
+import { RadioIcon, Headphones, Diamond, Square, Circle } from "lucide-react";
 
 export type VoiceAgentState =
   | "idle"
@@ -24,10 +16,8 @@ export type VoiceAgentState =
 
 export default function VoiceAgent() {
   const [agentState, setAgentState] = useState<VoiceAgentState>("idle");
-  const [isHovering, setIsHovering] = useState(false);
 
-  const { status, transcriptionStatus, connect, disconnect } =
-    useRealtimeSession();
+  const { status, connect, disconnect } = useRealtimeSession();
   const { selectedElement } = useMightyMouse(true, "voice-agent-face");
 
   // Get canvas store states (removed unused variables)
@@ -60,7 +50,7 @@ export default function VoiceAgent() {
         getEphemeralKey,
       });
       setAgentState("connected");
-    } catch (err) {
+    } catch {
       setAgentState("idle");
     }
   };
@@ -75,7 +65,7 @@ export default function VoiceAgent() {
   };
 
   // Calculate eye movement based on mouse position relative to the face
-  const getEyeOffset = (eyePosition: "left" | "right") => {
+  const getEyeOffset = (_eyePosition: "left" | "right") => {
     if (!selectedElement?.position.x || !selectedElement?.position.y) {
       return { x: 0, y: 0 };
     }
@@ -108,7 +98,7 @@ export default function VoiceAgent() {
   const rightEyeOffset = getEyeOffset("right");
 
   // Get state-specific eye animations
-  const getEyeAnimation = (eyePosition: "left" | "right") => {
+  const getEyeAnimation = (_eyePosition: "left" | "right") => {
     switch (agentState) {
       case "idle":
         return {
@@ -222,8 +212,6 @@ export default function VoiceAgent() {
       <div
         id="voice-agent-face"
         className="rounded-full size-16 bg-white absolute bottom-16 right-0 border border-gray-300 flex flex-col items-center justify-center overflow-hidden cursor-pointer shadow-sm z-20"
-        onMouseEnter={() => setIsHovering(true)}
-        onMouseLeave={() => setIsHovering(false)}
         onClick={status === "DISCONNECTED" ? handleConnect : handleDisconnect}
       >
         {/* eyes */}

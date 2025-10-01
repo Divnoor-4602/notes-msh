@@ -2,10 +2,9 @@
 
 import React from "react";
 import { useCustomer } from "autumn-js/react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "motion/react";
-import { BadgePercentIcon, CircleIcon, Loader2 } from "lucide-react";
+import { BadgePercentIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TrialStatusCard() {

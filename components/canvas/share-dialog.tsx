@@ -75,13 +75,22 @@ export function ShareDialog({
 
     setIsSharing(true);
     try {
+      const userName =
+        currentUser && "name" in currentUser
+          ? (currentUser.name as string)
+          : undefined;
+      const userEmail =
+        currentUser && "email" in currentUser
+          ? (currentUser.email as string)
+          : undefined;
+
       const result = await shareViaEmail({
         canvasId,
         recipientEmails: emails,
         customMessage: customMessage || undefined,
         expiresInDays: 30,
-        userName: (currentUser as any)?.name,
-        userEmail: (currentUser as any)?.email,
+        userName,
+        userEmail,
       });
       setShareUrl(result.shareUrl);
       toast.success(`Canvas shared with ${emails.length} recipient(s)!`);

@@ -60,8 +60,10 @@ export function ImportModal({ token, open, onOpenChange }: ImportModalProps) {
       // Clear token from URL and reload
       // Use push instead of replace to avoid issues with reload
       window.location.href = "/";
-    } catch (error: any) {
-      toast.error(error.message || "Failed to import canvas");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to import canvas";
+      toast.error(errorMessage);
       setIsImporting(false);
     }
   };
@@ -164,8 +166,8 @@ export function ImportModal({ token, open, onOpenChange }: ImportModalProps) {
           <div className="flex gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-900 dark:text-amber-200">
-              Importing will replace your current canvas. Make sure you've saved
-              any important work.
+              Importing will replace your current canvas. Make sure you&apos;ve
+              saved any important work.
             </p>
           </div>
 

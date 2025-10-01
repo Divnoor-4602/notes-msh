@@ -9,7 +9,7 @@ export function AuthAgent() {
   const { selectedElement } = useMightyMouse(true, "auth-agent-face");
 
   // Calculate eye movement based on mouse position relative to the face
-  const getEyeOffset = (eyePosition: "left" | "right") => {
+  const getEyeOffset = (_eyePosition: "left" | "right") => {
     if (!selectedElement?.position.x || !selectedElement?.position.y) {
       return { x: 0, y: 0 };
     }

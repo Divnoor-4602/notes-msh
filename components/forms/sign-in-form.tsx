@@ -71,7 +71,7 @@ export function SignInForm({
 
       // Success - user is signed in
       router.push("/");
-    } catch (_err) {
+    } catch {
       setIsLoading(false);
       toast.error("An unexpected error occurred. Please try again.");
     }
