@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -19,7 +19,7 @@ const HomeLayout = () => {
   const searchParams = useSearchParams();
   const shareToken = searchParams.get("token");
 
-  const { check, customer } = useCustomer();
+  const { check } = useCustomer();
   const [showPaywall, setShowPaywall] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showImportModal, setShowImportModal] = useState(!!shareToken);
@@ -30,12 +30,9 @@ const HomeLayout = () => {
     currentUser ? { userId: currentUser._id } : "skip"
   );
 
-  // Memoize the check call to prevent re-rendering issues
-  const { data } = useMemo(() => {
-    return check({
-      featureId: "voice_agent_access",
-    });
-  }, []); // Empty dependency array since featureId doesn't change
+  const { data } = check({
+    featureId: "voice_agent_access",
+  });
 
   // Show paywall when access is denied (only once per session)
   useEffect(() => {
