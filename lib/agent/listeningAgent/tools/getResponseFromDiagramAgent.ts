@@ -12,6 +12,7 @@ import {
 } from "./utils";
 import { getCanvasStore } from "@/lib/store/canvasStore";
 import { validateMermaid, ruleLint } from "./diagramAgentTools";
+import { useVoiceAgentStore } from "@/lib/store/voiceAgentStore";
 
 // tool definition for the diagramming agent:
 export const diagrammingAgentTool = [];
@@ -24,6 +25,10 @@ const getResponseFromDiagramAgentTool = tool({
   execute: async ({ specificInstruction, layoutHint }) => {
     // ALWAYS get fresh current mermaid code as source of truth
     const sourceMermaidCode = getCanvasStore().getCurrentMermaidCode() || "";
+
+    // Set voice agent to generating state when diagram tool starts
+    const { startGenerating } = useVoiceAgentStore.getState();
+    startGenerating();
 
     // form body for using the response api
     const body: {
@@ -221,6 +226,10 @@ const getResponseFromDiagramAgentTool = tool({
         validationAttempt++;
       }
     }
+
+    // Reset voice agent back to connected state when diagram completes
+    const { setAgentState } = useVoiceAgentStore.getState();
+    setAgentState("connected");
 
     // Add the validated Mermaid diagram directly to the canvas
     try {

@@ -36,11 +36,21 @@ export function useRealtimeSession() {
   }, []);
 
   const handleTransportEvent = useCallback((event: any) => {
-    // Handle transcription events
+    // Handle WebRTC speech detection events
     switch (event.type) {
-      case "conversation.item.input_audio_transcription.completed": {
-        // Set processing state when transcription is received
+      case "input_audio_buffer.speech_started": {
+        // User started speaking
+        setTranscriptionStatus("listening");
+        break;
+      }
+      case "input_audio_buffer.speech_stopped": {
+        // User stopped speaking, AI will start processing
         setTranscriptionStatus("processing");
+        break;
+      }
+      case "conversation.item.input_audio_transcription.completed": {
+        // Transcription process completed
+        setTranscriptionStatus("idle");
 
         // Add transcript to accumulator
         if (transcriptAccumulatorRef.current && event.transcript) {
@@ -58,16 +68,6 @@ export function useRealtimeSession() {
           });
         }
 
-        // Reset to idle after a short delay
-        setTimeout(() => {
-          setTranscriptionStatus("idle");
-        }, 500);
-
-        break;
-      }
-      case "conversation.item.input_audio_buffer.committed": {
-        // Set listening state when audio buffer is committed (user is speaking)
-        setTranscriptionStatus("listening");
         break;
       }
     }

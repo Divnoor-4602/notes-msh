@@ -1,38 +1,45 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useRealtimeSession } from "../../hooks/useRealtimeSession";
+import { useVoiceAgentStore } from "../../lib/store/voiceAgentStore";
 import useMightyMouse from "react-hook-mighty-mouse";
 import { motion } from "motion/react";
-import { RadioIcon, Headphones, Diamond, Square, Circle } from "lucide-react";
-
-export type VoiceAgentState =
-  | "idle"
-  | "connecting"
-  | "connected"
-  | "disconnecting"
-  | "listening"
-  | "generating_diagram";
+import { RadioIcon, Diamond, Square, Circle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function VoiceAgent() {
-  const [agentState, setAgentState] = useState<VoiceAgentState>("idle");
-
-  const { status, connect, disconnect } = useRealtimeSession();
+  const { status, transcriptionStatus, connect, disconnect } =
+    useRealtimeSession();
   const { selectedElement } = useMightyMouse(true, "voice-agent-face");
 
-  // Get canvas store states (removed unused variables)
+  // Voice agent state from Zustand store
+  const agentState = useVoiceAgentStore((state) => state.agentState);
+  const setConnectionStatus = useVoiceAgentStore(
+    (state) => state.setConnectionStatus
+  );
+  const setTranscriptionStatus = useVoiceAgentStore(
+    (state) => state.setTranscriptionStatus
+  );
+  const startConnecting = useVoiceAgentStore((state) => state.startConnecting);
+  const finishConnecting = useVoiceAgentStore(
+    (state) => state.finishConnecting
+  );
+  const startDisconnecting = useVoiceAgentStore(
+    (state) => state.startDisconnecting
+  );
+  const finishDisconnecting = useVoiceAgentStore(
+    (state) => state.finishDisconnecting
+  );
 
-  // Console log state changes
-  React.useEffect(() => {
-    console.log("Voice Agent State:", agentState);
-  }, [agentState]);
-
-  // Handle state transitions based on real session states
+  // Sync voice agent store with useRealtimeSession changes
   useEffect(() => {
-    if (status === "CONNECTED") {
-      setAgentState("generating_diagram");
-    }
-  }, [status]);
+    setConnectionStatus(status);
+  }, [status, setConnectionStatus]);
+
+  useEffect(() => {
+    setTranscriptionStatus(transcriptionStatus);
+  }, [transcriptionStatus, setTranscriptionStatus]);
 
   const getEphemeralKey = async () => {
     const response = await fetch("/api/token");
@@ -45,22 +52,22 @@ export default function VoiceAgent() {
 
   const handleConnect = async () => {
     try {
-      setAgentState("connecting");
+      startConnecting();
       await connect({
         getEphemeralKey,
       });
-      setAgentState("connected");
+      finishConnecting();
     } catch {
-      setAgentState("idle");
+      finishDisconnecting();
     }
   };
 
   const handleDisconnect = () => {
     disconnect();
     // Add a brief disconnect animation before returning to idle
-    setAgentState("disconnecting");
+    startDisconnecting();
     setTimeout(() => {
-      setAgentState("idle");
+      finishDisconnecting();
     }, 800); // Match the duration of the disconnect animation
   };
 
@@ -96,6 +103,65 @@ export default function VoiceAgent() {
 
   const leftEyeOffset = getEyeOffset("left");
   const rightEyeOffset = getEyeOffset("right");
+
+  // Get eye color based on agent state
+  const getEyeColor = () => {
+    switch (agentState) {
+      case "listening":
+        return "bg-blue-500";
+      case "speaking":
+        return "bg-orange-500";
+      case "connected":
+        return "bg-green-600";
+      case "generating_diagram":
+        return "bg-purple-500"; // This will be overridden by the animation
+      default:
+        return "bg-gray-800";
+    }
+  };
+
+  // Get eye color animation for generating_diagram state
+  const getEyeColorAnimation = () => {
+    if (agentState === "generating_diagram") {
+      return {
+        animate: {
+          backgroundColor: [
+            "rgb(236 72 153)", // pink-500
+            "rgb(59 130 246)", // blue-500
+            "rgb(34 197 94)", // green-500
+            "rgb(168 85 247)", // purple-500
+            "rgb(251 191 36)", // yellow-500
+            "rgb(236 72 153)", // pink-500 (back to start)
+          ],
+        },
+        transition: {
+          duration: 3,
+          repeat: Infinity,
+          ease: "easeInOut" as const,
+        },
+      };
+    } else {
+      // When not in generating_diagram state, animate to the appropriate color
+      const colorMap = {
+        idle: "rgb(31 41 55)", // gray-800
+        connecting: "rgb(31 41 55)", // gray-800
+        connected: "rgb(34 197 94)", // green-600
+        listening: "rgb(59 130 246)", // blue-500
+        speaking: "rgb(245 158 11)", // orange-500
+        disconnecting: "rgb(31 41 55)", // gray-800
+      };
+
+      return {
+        animate: {
+          backgroundColor: colorMap[agentState] || "rgb(31 41 55)",
+        },
+        transition: {
+          duration: 0.3,
+          ease: "easeInOut" as const,
+        },
+      };
+    }
+  };
 
   // Get state-specific eye animations
   const getEyeAnimation = (_eyePosition: "left" | "right") => {
@@ -157,8 +223,7 @@ export default function VoiceAgent() {
           Icon = RadioIcon;
           break;
         case "connected":
-          Icon = Headphones;
-          break;
+          return null; // No floating elements for connected state
         case "generating_diagram":
           // Only shapes
           const shapes = [Diamond, Square, Circle];
@@ -207,11 +272,41 @@ export default function VoiceAgent() {
     return elements;
   };
 
+  // Add face scale animation based on agent state
+  const getFaceAnimation = () => {
+    switch (agentState) {
+      case "speaking":
+        return {
+          scale: [1, 1.03, 0.99, 1.05, 1.01, 1.04, 1.02, 1.03, 1],
+          transition: {
+            duration: 0.8,
+            repeat: Infinity,
+            ease: "easeOut" as const, // Smoother, less bouncy easing
+          },
+        };
+      default:
+        return {
+          scale: 1,
+          transition: {
+            duration: 0.3,
+            ease: "easeOut" as const,
+          },
+        };
+    }
+  };
+
   return (
     <>
-      <div
+      <motion.div
         id="voice-agent-face"
         className="rounded-full size-16 bg-white absolute bottom-16 right-0 border border-gray-300 flex flex-col items-center justify-center overflow-hidden cursor-pointer shadow-sm z-20"
+        whileHover={
+          agentState !== "speaking" && agentState !== "generating_diagram"
+            ? { scale: 1.05 }
+            : {}
+        }
+        whileTap={{ scale: 0.95 }}
+        animate={getFaceAnimation()}
         onClick={status === "DISCONNECTED" ? handleConnect : handleDisconnect}
       >
         {/* eyes */}
@@ -234,8 +329,9 @@ export default function VoiceAgent() {
             }}
           >
             <motion.div
-              className="w-1 h-4 bg-gray-800 rounded-full"
+              className="w-1 h-4 rounded-full"
               {...getEyeAnimation("left")}
+              {...getEyeColorAnimation()}
             />
           </motion.div>
 
@@ -257,12 +353,13 @@ export default function VoiceAgent() {
             }}
           >
             <motion.div
-              className="w-1 h-4 bg-gray-800 rounded-full"
+              className="w-1 h-4 rounded-full"
               {...getEyeAnimation("right")}
+              {...getEyeColorAnimation()}
             />
           </motion.div>
         </div>
-      </div>
+      </motion.div>
       {/* Floating elements for different states */}
       {agentState !== "idle" && (
         <div className="absolute bottom-32 right-0 w-20 h-20 pointer-events-none z-10">
