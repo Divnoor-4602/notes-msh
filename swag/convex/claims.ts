@@ -20,7 +20,8 @@ const vSubmitResult = v.union(
     linkUrl: v.union(v.string(), v.null()),
   }),
   v.object({ status: v.literal("closed") }),
-  v.object({ status: v.literal("out_of_links") })
+  v.object({ status: v.literal("out_of_links") }),
+  v.object({ status: v.literal("invalid"), message: v.string() })
 );
 
 /** Finds the existing claim for this person, by email or by X handle. */
@@ -60,7 +61,14 @@ export const submit = mutation({
       return { status: "closed" as const };
     }
 
-    const input = validateClaimInput(args);
+    // A typo is an expected outcome, not an exception, so it comes back as a
+    // result the form can render instead of a thrown server error.
+    const validation = validateClaimInput(args);
+    if (!validation.ok) {
+      return { status: "invalid" as const, message: validation.message };
+    }
+    const input = validation.value;
+
     const reveal = await getBooleanSetting(ctx, "revealLinkOnClaim");
 
     // Re-submitting returns the original link rather than burning a second one.

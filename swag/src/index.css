@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #050505;
+  --color-ink-soft: #0c0c0c;
+  --color-line: #1f1f1f;
+  --color-line-bright: #333333;
+  --color-chalk: #fafafa;
+  --color-mute: #8b8b8b;
+  --color-mute-dim: #5c5c5c;
+
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-ink);
+    color: var(--color-chalk);
+    font-family: var(--font-sans);
+  }
+
+  /* Keyboard focus stays visible, pointer focus does not add noise. */
+  :focus-visible {
+    outline: 2px solid var(--color-chalk);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-chalk);
+    color: var(--color-ink);
+  }
+}
+
+@layer utilities {
+  /* Soft vignette behind the card so the page is not a flat black rectangle. */
+  .bg-halo {
+    background-image: radial-gradient(
+      60rem 40rem at 50% -10%,
+      rgba(255, 255, 255, 0.07),
+      transparent 70%
+    );
+  }
+
+  .animate-rise {
+    animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
+}

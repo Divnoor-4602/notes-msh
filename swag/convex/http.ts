@@ -22,6 +22,23 @@ function bearerKey(request: Request): string | null {
 }
 
 /**
+ * Convex wraps thrown errors with a stack trace. Surface only the message so
+ * an unauthenticated caller learns nothing about the backend.
+ */
+function unauthorized(error: unknown): Response {
+  const message = error instanceof Error ? error.message : "";
+  const isMisconfigured = message.includes("ADMIN_KEY is not set");
+  return json(
+    {
+      error: isMisconfigured
+        ? "ADMIN_KEY is not set on this deployment"
+        : "Invalid admin key",
+    },
+    401
+  );
+}
+
+/**
  * Outbox API for the Superhuman Mail MCP workflow.
  *
  * The Superhuman MCP server runs inside your AI client, not inside Convex, so
@@ -51,10 +68,7 @@ http.route({
       });
       return json({ count: emails.length, emails });
     } catch (error) {
-      return json(
-        { error: error instanceof Error ? error.message : "Unauthorized" },
-        401
-      );
+      return unauthorized(error);
     }
   }),
 });
@@ -88,10 +102,7 @@ http.route({
       });
       return json(result);
     } catch (error) {
-      return json(
-        { error: error instanceof Error ? error.message : "Unauthorized" },
-        401
-      );
+      return unauthorized(error);
     }
   }),
 });

@@ -36,40 +36,55 @@ export type ValidatedClaimInput = {
   twitterHandleRaw: string;
 };
 
+export type ValidationResult =
+  | { ok: true; value: ValidatedClaimInput }
+  | { ok: false; message: string };
+
 /**
  * Normalizes and validates form input.
- * Throws with a message intended to be shown directly to the person.
+ *
+ * Returns a result rather than throwing: a mistyped email is a normal thing
+ * for a form to encounter, and throwing would log it as a server error.
+ * Messages are written to be shown to the person as is.
  */
 export function validateClaimInput(raw: {
   name: string;
   email: string;
   twitterHandle: string;
-}): ValidatedClaimInput {
+}): ValidationResult {
   const name = normalizeName(raw.name);
   if (name.length < 2) {
-    throw new Error("Please enter your name");
+    return { ok: false, message: "Please enter your name" };
   }
   if (name.length > MAX_NAME_LENGTH) {
-    throw new Error(`Name must be ${MAX_NAME_LENGTH} characters or fewer`);
+    return {
+      ok: false,
+      message: `Name must be ${MAX_NAME_LENGTH} characters or fewer`,
+    };
   }
 
   const email = normalizeEmail(raw.email);
   if (!EMAIL_PATTERN.test(email)) {
-    throw new Error("Please enter a valid email address");
+    return { ok: false, message: "Please enter a valid email address" };
   }
 
   const twitterHandle = normalizeHandle(raw.twitterHandle);
   if (!HANDLE_PATTERN.test(twitterHandle)) {
-    throw new Error(
-      "Please enter a valid X handle, letters numbers and underscores only"
-    );
+    return {
+      ok: false,
+      message:
+        "Please enter a valid X handle, letters numbers and underscores only",
+    };
   }
 
   return {
-    name,
-    email,
-    twitterHandle,
-    twitterHandleRaw: raw.twitterHandle.trim(),
+    ok: true,
+    value: {
+      name,
+      email,
+      twitterHandle,
+      twitterHandleRaw: raw.twitterHandle.trim(),
+    },
   };
 }
 
