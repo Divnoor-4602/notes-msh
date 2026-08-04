@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project with OpenAI Voice Agents integration, featuring a collaborative drawing canvas and voice assistant.
 
+> **Also in this repo:** [`swag/`](./swag) is a standalone Friends of Convex swag
+> giveaway app. It has its own Convex deployment and its own dependencies, so it
+> does not affect this project. See [swag/README.md](./swag/README.md).
+
 ## Features
 
 - 🎨 **Excalidraw Canvas**: Collaborative drawing and diagramming
