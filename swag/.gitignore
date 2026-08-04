@@ -5,6 +5,9 @@ dist-ssr
 .env.local
 .env.*.local
 
+# The root .gitignore excludes all .env* files, so re-include the template
+!.env.example
+
 # Convex local deployment state
 .convex
 
