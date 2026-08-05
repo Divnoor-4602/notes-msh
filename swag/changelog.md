@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.2.0
+
+### Added
+
+- **Generate links through the Fourthwall API.** The Links tab can load your
+  products and mint giveaway links straight into the pool, so the CSV export
+  and import round trip is optional now. Set `FOURTHWALL_USERNAME` and
+  `FOURTHWALL_PASSWORD`, or `FOURTHWALL_TOKEN` for OAuth apps
+- **Delivery mode picker in the dashboard.** Superhuman and Resend are now
+  chosen under Settings rather than through an environment variable, so the
+  mode can change mid event. `DELIVERY_MODE` is still read as the starting
+  value for a fresh deployment
+- **Guard against switching to Resend before it works.** The dashboard refuses
+  the switch until `RESEND_API_KEY` and `EMAIL_FROM` are set, rather than
+  queueing mail that can never send
+- **Resend status diagnostics.** An admin query reports what the Resend
+  component knows about an email, so a row stuck in sending can be explained
+
+### Fixed
+
+- **Resend rows reported "sent" when nothing had been sent.** `sendEmail`
+  enqueues into a workpool rather than calling Resend inline, so a successful
+  call only means accepted. Rows now stay in sending until the webhook or a
+  scheduled reconciliation resolves them to sent or failed. An invalid API key
+  used to look like a clean send and now surfaces the real error
+- **Reconciliation missed terminal failures.** The Resend component reports
+  some failures through `status.status` without setting the matching boolean
+  flag, so failed emails were rescheduled instead of being marked failed
+
 ## 0.1.0
 
 First version. A swag giveaway app that runs entirely on one Convex

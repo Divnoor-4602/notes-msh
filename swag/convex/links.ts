@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { requireAdmin } from "./lib/admin";
 import { extractLinks, linkCode } from "./lib/validation";
 
@@ -8,6 +9,49 @@ export const MAX_LINKS_PER_IMPORT = 500;
 
 /** How many rows the stats query will scan before it reports a capped count. */
 const STATS_SCAN_LIMIT = 10000;
+
+/**
+ * Adds links to the pool, skipping any whose code is already present.
+ * Shared by the paste and CSV import and by the Fourthwall API generator.
+ */
+async function addLinks(
+  ctx: MutationCtx,
+  urls: Array<string>,
+  batch: string
+): Promise<{ imported: number; duplicates: number }> {
+  if (urls.length > MAX_LINKS_PER_IMPORT) {
+    throw new Error(
+      `Import at most ${MAX_LINKS_PER_IMPORT} links at a time, got ${urls.length}`
+    );
+  }
+
+  const label = batch.trim() || "untitled";
+  const now = Date.now();
+  let imported = 0;
+  let duplicates = 0;
+
+  for (const url of urls) {
+    const code = linkCode(url);
+    const existing = await ctx.db
+      .query("giveawayLinks")
+      .withIndex("by_code", (q) => q.eq("code", code))
+      .first();
+    if (existing) {
+      duplicates++;
+      continue;
+    }
+    await ctx.db.insert("giveawayLinks", {
+      url,
+      code,
+      batch: label,
+      status: "available",
+      importedAt: now,
+    });
+    imported++;
+  }
+
+  return { imported, duplicates };
+}
 
 /**
  * Imports Fourthwall giveaway links from a pasted CSV export or a plain list.
@@ -28,38 +72,23 @@ export const importLinks = mutation({
     requireAdmin(args.key);
 
     const urls = extractLinks(args.text);
-    if (urls.length > MAX_LINKS_PER_IMPORT) {
-      throw new Error(
-        `Import at most ${MAX_LINKS_PER_IMPORT} links at a time, got ${urls.length}`
-      );
-    }
+    const result = await addLinks(ctx, urls, args.batch);
+    return { ...result, found: urls.length };
+  },
+});
 
-    const batch = args.batch.trim() || "untitled";
-    const now = Date.now();
-    let imported = 0;
-    let duplicates = 0;
-
-    for (const url of urls) {
-      const code = linkCode(url);
-      const existing = await ctx.db
-        .query("giveawayLinks")
-        .withIndex("by_code", (q) => q.eq("code", code))
-        .first();
-      if (existing) {
-        duplicates++;
-        continue;
-      }
-      await ctx.db.insert("giveawayLinks", {
-        url,
-        code,
-        batch,
-        status: "available",
-        importedAt: now,
-      });
-      imported++;
-    }
-
-    return { imported, duplicates, found: urls.length };
+/** Used by the Fourthwall action, which already has real URLs in hand. */
+export const addGenerated = internalMutation({
+  args: {
+    urls: v.array(v.string()),
+    batch: v.string(),
+  },
+  returns: v.object({
+    imported: v.number(),
+    duplicates: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    return await addLinks(ctx, args.urls, args.batch);
   },
 });
 

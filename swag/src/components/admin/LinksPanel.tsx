@@ -5,6 +5,7 @@ import { api } from "../../../convex/_generated/api";
 import { Button } from "../ui/Button";
 import { Field } from "../ui/Field";
 import { Card, Stat, StatGrid } from "./Panel";
+import { FourthwallGenerator } from "./FourthwallGenerator";
 
 type ImportResult = {
   imported: number;
@@ -53,8 +54,10 @@ export function LinksPanel({ adminKey }: { adminKey: string }) {
         <Stat label="Claimed" value={stats?.assigned ?? "-"} />
       </StatGrid>
 
+      <FourthwallGenerator adminKey={adminKey} />
+
       <Card
-        title="Import giveaway links"
+        title="Or import links you already have"
         description="Upload the CSV that Fourthwall exports, or paste the column of links from your spreadsheet. Up to 500 at a time."
       >
         <div className="flex flex-col gap-4">

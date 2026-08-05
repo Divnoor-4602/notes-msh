@@ -11,8 +11,9 @@ What each file in `swag/` does.
 | `convex/claims.ts` | `submit` assigns one link per person inside a transaction, `listRecent` feeds the admin table |
 | `convex/links.ts` | Imports Fourthwall links from CSV or pasted text, reports pool counts, clears unclaimed links |
 | `convex/outbox.ts` | The delivery queue: list pending, list by status, counts, mark sent, requeue |
-| `convex/emails.ts` | Resend client, the automatic send path, the delivery webhook handler, and retry |
-| `convex/settings.ts` | Runtime toggles read by the public page and written by the admin dashboard |
+| `convex/emails.ts` | Resend client, the automatic send path, the delivery webhook, status reconciliation, and retry |
+| `convex/fourthwall.ts` | Fourthwall Platform API client: list products, mint giveaway links into the pool |
+| `convex/settings.ts` | Delivery mode and the runtime toggles, read by the public page and written by the dashboard |
 | `convex/http.ts` | `/api/outbox/*` for the Superhuman workflow, the Resend webhook, and the SPA catch-all |
 | `convex/lib/admin.ts` | Shared secret check for admin functions |
 | `convex/lib/validation.ts` | Normalizes names, emails and X handles, and pulls URLs out of a CSV |
@@ -35,8 +36,9 @@ What each file in `swag/` does.
 | `src/components/admin/AdminPage.tsx` | Admin key gate and the tab shell |
 | `src/components/admin/OutboxPanel.tsx` | Queue counts, the Superhuman prompt, mark sent and requeue |
 | `src/components/admin/LinksPanel.tsx` | CSV upload and paste import, pool counts |
+| `src/components/admin/FourthwallGenerator.tsx` | Product picker and link generation through the Fourthwall API |
 | `src/components/admin/ClaimsPanel.tsx` | Claim list with delivery status and CSV export |
-| `src/components/admin/SettingsPanel.tsx` | Toggles for claims open and link reveal |
+| `src/components/admin/SettingsPanel.tsx` | Delivery mode picker, plus toggles for claims open and link reveal |
 | `src/components/admin/Panel.tsx` | Shared card, stat, copy block and empty state pieces |
 
 ## Config and docs

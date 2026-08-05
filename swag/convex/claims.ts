@@ -6,8 +6,8 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireAdmin } from "./lib/admin";
 import { validateClaimInput } from "./lib/validation";
 import { renderSwagEmail } from "./lib/emailTemplate";
-import { getBooleanSetting } from "./settings";
-import { deliveryMode, senderName } from "./lib/env";
+import { getBooleanSetting, getDeliveryMode } from "./settings";
+import { senderName } from "./lib/env";
 
 const vSubmitResult = v.union(
   v.object({
@@ -130,8 +130,7 @@ export const submit = mutation({
 
     // In superhuman mode the row is left pending for you to drain, so the mail
     // goes out from your own mailbox instead of a transactional sender.
-    const autoSend = deliveryMode() === "resend";
-    if (autoSend) {
+    if ((await getDeliveryMode(ctx)) === "resend") {
       await ctx.scheduler.runAfter(0, internal.emails.deliverViaResend, {
         outboxId,
       });

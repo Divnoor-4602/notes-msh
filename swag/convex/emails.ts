@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { Resend, vOnEmailEventArgs } from "@convex-dev/resend";
+import { Resend, vOnEmailEventArgs, type EmailId } from "@convex-dev/resend";
 import { components, internal } from "./_generated/api";
-import { internalMutation, mutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { requireAdmin } from "./lib/admin";
 import { fromAddress, replyToAddresses } from "./lib/env";
 
@@ -14,7 +14,17 @@ export const resend: Resend = new Resend(components.resend, {
   onEmailEvent: internal.emails.handleEmailEvent,
 });
 
-/** Sends one queued outbox row through Resend. */
+/** How long to wait between checks on an email Resend has not resolved yet. */
+const RECONCILE_DELAY_MS = 60_000;
+const MAX_RECONCILE_ATTEMPTS = 6;
+
+/**
+ * Hands one queued outbox row to Resend.
+ *
+ * `sendEmail` only enqueues into the component's workpool, so a successful
+ * call means "accepted for sending", not "delivered". The row stays in
+ * "sending" until either the webhook or reconcileResend learns its fate.
+ */
 export const deliverViaResend = internalMutation({
   args: { outboxId: v.id("outbox") },
   returns: v.null(),
@@ -41,12 +51,16 @@ export const deliverViaResend = internalMutation({
       });
 
       await ctx.db.patch(args.outboxId, {
-        status: "sent",
         channel: "resend",
         resendEmailId: emailId,
-        sentAt: Date.now(),
         error: undefined,
       });
+
+      await ctx.scheduler.runAfter(
+        RECONCILE_DELAY_MS,
+        internal.emails.reconcileResend,
+        { outboxId: args.outboxId, attempt: 1 }
+      );
     } catch (error) {
       await ctx.db.patch(args.outboxId, {
         status: "failed",
@@ -59,8 +73,77 @@ export const deliverViaResend = internalMutation({
 });
 
 /**
- * Resend delivery webhook. Bounces and complaints flip the row back to failed
- * so it shows up in the admin table and can be retried or sent by hand.
+ * Asks the Resend component what happened to an email.
+ *
+ * The webhook is faster, and this exists so the dashboard still tells the
+ * truth on a deployment where no webhook is configured.
+ */
+export const reconcileResend = internalMutation({
+  args: {
+    outboxId: v.id("outbox"),
+    attempt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.outboxId);
+    if (!row || row.status !== "sending" || !row.resendEmailId) {
+      return null;
+    }
+
+    const status = await resend.status(ctx, row.resendEmailId as EmailId);
+    if (!status) return null;
+
+    if (status.status === "delivered") {
+      await ctx.db.patch(args.outboxId, {
+        status: "sent",
+        sentAt: Date.now(),
+        error: undefined,
+      });
+      return null;
+    }
+
+    // The component reports a terminal failure through `status.status` and
+    // does not always set the matching boolean, so check both.
+    const terminalFailure =
+      status.failed ||
+      status.bounced ||
+      status.status === "failed" ||
+      status.status === "bounced" ||
+      status.status === "cancelled";
+
+    if (terminalFailure) {
+      await ctx.db.patch(args.outboxId, {
+        status: "failed",
+        error: status.errorMessage ?? status.status,
+      });
+      return null;
+    }
+
+    // "sent" means Resend accepted it but delivery is unconfirmed. Give it a
+    // few more checks, then leave it alone rather than guessing.
+    if (args.attempt >= MAX_RECONCILE_ATTEMPTS) {
+      if (status.status === "sent") {
+        await ctx.db.patch(args.outboxId, {
+          status: "sent",
+          sentAt: Date.now(),
+        });
+      }
+      return null;
+    }
+
+    await ctx.scheduler.runAfter(
+      RECONCILE_DELAY_MS,
+      internal.emails.reconcileResend,
+      { outboxId: args.outboxId, attempt: args.attempt + 1 }
+    );
+    return null;
+  },
+});
+
+/**
+ * Resend delivery webhook, the fast path for learning an email's fate.
+ * Bounces and complaints land in the failed list so they can be retried or
+ * sent by hand.
  */
 export const handleEmailEvent = internalMutation({
   args: vOnEmailEventArgs,
@@ -78,8 +161,55 @@ export const handleEmailEvent = internalMutation({
         status: "failed",
         error: args.event.type,
       });
+      return null;
+    }
+
+    if (args.event.type === "email.delivered") {
+      await ctx.db.patch(row._id, {
+        status: "sent",
+        sentAt: Date.now(),
+        error: undefined,
+      });
     }
     return null;
+  },
+});
+
+/**
+ * What Resend currently thinks of one email. Surfaced in the dashboard so a
+ * row stuck in "sending" can be explained rather than guessed at.
+ */
+export const resendStatus = query({
+  args: {
+    key: v.string(),
+    outboxId: v.id("outbox"),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      status: v.string(),
+      errorMessage: v.union(v.string(), v.null()),
+      bounced: v.boolean(),
+      complained: v.boolean(),
+      failed: v.boolean(),
+    })
+  ),
+  handler: async (ctx, args) => {
+    requireAdmin(args.key);
+
+    const row = await ctx.db.get(args.outboxId);
+    if (!row?.resendEmailId) return null;
+
+    const status = await resend.status(ctx, row.resendEmailId as EmailId);
+    if (!status) return null;
+
+    return {
+      status: status.status,
+      errorMessage: status.errorMessage,
+      bounced: status.bounced,
+      complained: status.complained,
+      failed: status.failed,
+    };
   },
 });
 

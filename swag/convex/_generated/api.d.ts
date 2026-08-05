@@ -10,6 +10,7 @@
 
 import type * as claims from "../claims.js";
 import type * as emails from "../emails.js";
+import type * as fourthwall from "../fourthwall.js";
 import type * as http from "../http.js";
 import type * as lib_admin from "../lib/admin.js";
 import type * as lib_emailTemplate from "../lib/emailTemplate.js";
@@ -28,6 +29,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   claims: typeof claims;
   emails: typeof emails;
+  fourthwall: typeof fourthwall;
   http: typeof http;
   "lib/admin": typeof lib_admin;
   "lib/emailTemplate": typeof lib_emailTemplate;
